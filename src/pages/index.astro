@@ -1,14 +1,57 @@
 ---
+import Layout from '../layouts/Layout.astro';
+import { getDB } from '../lib/db/client';
+import { getAllCharts } from '../lib/db/chart-queries';
+
+const db = getDB(Astro.locals.runtime?.env);
+const charts = await getAllCharts(db);
 ---
 
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Chart Tracker</title>
-</head>
-<body>
-    <h1>Chart Tracker</h1>
-    <p>Coming soon.</p>
-</body>
-</html>
+<Layout title="Chart Tracker">
+    <div class="top-bar">
+        <h1>Chart Tracker</h1>
+        <a href="/charts/new" class="btn">New Chart</a>
+    </div>
+
+    {charts.length === 0 ? (
+        <div class="card">
+            <p style="color: var(--text-light); margin: 0;">No charts yet. Create one to get started.</p>
+        </div>
+    ) : (
+        <div class="chart-list">
+            {charts.map(c => (
+                <a href={`/charts/${c.id}`} class="chart-row">
+                    <div>
+                        <div class="chart-title">{c.title}</div>
+                        <div class="chart-meta">{c.date_start} &ndash; {c.date_end} &middot; {c.y_axis_label} ({c.y_min}&ndash;{c.y_max})</div>
+                    </div>
+                    <div class="chart-count">{c.entry_count} {c.entry_count === 1 ? 'point' : 'points'}</div>
+                </a>
+            ))}
+        </div>
+    )}
+</Layout>
+
+<style>
+.chart-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+.chart-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.15s;
+}
+.chart-row:hover { border-color: var(--primary); }
+.chart-title { font-weight: 700; color: var(--primary); }
+.chart-meta { font-size: 0.8rem; color: var(--text-light); margin-top: 0.2rem; }
+.chart-count { font-size: 0.8rem; color: var(--text-light); white-space: nowrap; }
+</style>

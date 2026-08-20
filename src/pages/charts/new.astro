@@ -1,0 +1,86 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="New Chart | Chart Tracker">
+    <div class="top-bar">
+        <h1>New Chart</h1>
+        <a href="/">&larr; Back</a>
+    </div>
+
+    <div class="card">
+        <form id="chart-form">
+            <div class="form-group">
+                <label for="title">Title *</label>
+                <input type="text" id="title" name="title" required placeholder="e.g., Mood Tracker" />
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="x_axis_label">X-Axis Label *</label>
+                    <input type="text" id="x_axis_label" name="x_axis_label" required placeholder="e.g., Date" value="Date" />
+                </div>
+                <div class="form-group">
+                    <label for="y_axis_label">Y-Axis Label *</label>
+                    <input type="text" id="y_axis_label" name="y_axis_label" required placeholder="e.g., Score" />
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="y_min">Y-Axis Min *</label>
+                    <input type="number" id="y_min" name="y_min" required value="1" step="any" />
+                </div>
+                <div class="form-group">
+                    <label for="y_max">Y-Axis Max *</label>
+                    <input type="number" id="y_max" name="y_max" required value="100" step="any" />
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="date_start">Start Date *</label>
+                    <input type="date" id="date_start" name="date_start" required />
+                </div>
+                <div class="form-group">
+                    <label for="date_end">End Date *</label>
+                    <input type="date" id="date_end" name="date_end" required />
+                </div>
+            </div>
+
+            <button type="submit" class="btn">Create Chart</button>
+            <div id="status-message" class="status-message"></div>
+        </form>
+    </div>
+</Layout>
+
+<script>
+    const form = document.getElementById('chart-form') as HTMLFormElement;
+    const statusMessage = document.getElementById('status-message')!;
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData.entries());
+
+        try {
+            const response = await fetch('/api/charts/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                window.location.href = `/charts/${result.id}`;
+            } else {
+                const error = await response.json();
+                statusMessage.textContent = `Error: ${error.error || 'Failed to create chart'}`;
+                statusMessage.className = 'status-message error';
+            }
+        } catch {
+            statusMessage.textContent = 'Network error. Please try again.';
+            statusMessage.className = 'status-message error';
+        }
+    });
+</script>
