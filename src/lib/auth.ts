@@ -78,20 +78,29 @@ async function verifyJWT(token: string, secret: string): Promise<JWTPayload | nu
 }
 
 export async function getAuthenticatedUser(request: Request, env: any): Promise<AuthUser | null> {
-  const cookies = parseCookies(request.headers.get('Cookie') || '');
+  const rawCookieHeader = request.headers.get('Cookie') || '';
+  const cookies = parseCookies(rawCookieHeader);
   const token = cookies.auth_token;
+  // TEMP DEBUG — remove after diagnosing cross-subdomain auth issue
+  console.log('[auth-debug] cookie header present:', !!rawCookieHeader, 'length:', rawCookieHeader.length);
+  console.log('[auth-debug] cookie names seen:', Object.keys(cookies).join(','));
+  console.log('[auth-debug] auth_token present:', !!token, 'length:', token?.length ?? 0);
+  console.log('[auth-debug] JWT_SECRET configured:', !!env?.JWT_SECRET, 'length:', env?.JWT_SECRET?.length ?? 0);
   if (!token) return null;
 
   try {
     const payload = await verifyJWT(token, env.JWT_SECRET);
+    console.log('[auth-debug] JWT verify result:', payload ? `ok sub=${payload.sub} exp=${payload.exp}` : 'FAILED (bad signature or expired)');
     if (!payload) return null;
 
     const user = await env.DB.prepare(
       'SELECT * FROM users WHERE id = ?'
     ).bind(parseInt(payload.sub)).first<AuthUser>();
+    console.log('[auth-debug] DB user lookup:', user ? `found id=${user.id} is_admin=${user.is_admin}` : 'NOT FOUND');
 
     return user ?? null;
-  } catch {
+  } catch (err) {
+    console.log('[auth-debug] exception:', err instanceof Error ? err.message : String(err));
     return null;
   }
 }
