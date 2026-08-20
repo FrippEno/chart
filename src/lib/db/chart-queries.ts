@@ -116,6 +116,24 @@ export async function createEntry(
   }, 'Failed to create entry');
 }
 
+export async function createEntriesBulk(
+  db: D1Database,
+  chartId: number,
+  entries: { entry_date: string; score: number; annotation?: string | null }[]
+): Promise<number> {
+  return safeQuery(async () => {
+    const now = new Date().toISOString();
+    const statements = entries.map(e =>
+      db.prepare(`
+        INSERT INTO chart_entries (chart_id, entry_date, score, annotation, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).bind(chartId, e.entry_date, e.score, e.annotation ?? null, now, now)
+    );
+    await db.batch(statements);
+    return entries.length;
+  }, 'Failed to bulk-import entries');
+}
+
 export async function updateEntry(
   db: D1Database,
   id: number,
