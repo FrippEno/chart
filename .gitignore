@@ -1,0 +1,22 @@
+# build output
+dist/
+.astro/
+
+# dependencies
+node_modules/
+
+# wrangler
+.wrangler/
+
+# environment variables
+.env
+.env.production
+
+# macOS
+.DS_Store
+
+# Windows reserved device names (prevent accidental creation)
+nul
+NUL
+con
+CON

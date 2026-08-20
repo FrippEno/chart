@@ -1,0 +1,9 @@
+name = "chart-tracker"
+compatibility_date = "2025-09-14"
+pages_build_output_dir = "./dist"
+
+# D1 Database Binding — shared with starviewonline
+[[d1_databases]]
+binding = "DB"
+database_name = "starview-articles"
+database_id = "035377fa-4e3a-4922-8043-eb254e20150f"
