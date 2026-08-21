@@ -9,6 +9,8 @@ export interface Chart {
   y_max: number;
   date_start: string;
   date_end: string;
+  goal_score: number | null;
+  goal_date: string | null;
   created_at: string;
   updated_at: string;
 }

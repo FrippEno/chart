@@ -25,6 +25,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
       y_max: Number(data.y_max),
       date_start: data.date_start,
       date_end: data.date_end,
+      goal_score: data.goal_score !== undefined && data.goal_score !== '' ? Number(data.goal_score) : null,
+      goal_date: data.goal_date || null,
     });
 
     return new Response(JSON.stringify({ success: true, id }), {

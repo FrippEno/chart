@@ -13,6 +13,8 @@ if (!chart) {
 }
 
 const entries = await getEntriesForChart(db, chartId);
+const latest = entries.length > 0 ? entries[entries.length - 1] : null;
+const goalDiff = chart.goal_score !== null && latest ? Math.abs(latest.score - chart.goal_score) : null;
 ---
 
 <Layout title={`${chart.title} | Chart Tracker`}>
@@ -20,6 +22,12 @@ const entries = await getEntriesForChart(db, chartId);
         <div>
             <h1>{chart.title}</h1>
             <p class="subtitle">{chart.date_start} &ndash; {chart.date_end} &middot; {chart.y_axis_label} range {chart.y_min}&ndash;{chart.y_max}</p>
+            {chart.goal_score !== null && (
+                <p class="goal-line">
+                    &#127919; Goal: {chart.goal_score}{chart.goal_date && <> by {chart.goal_date}</>}
+                    {latest && <> &middot; Latest: {latest.score} ({goalDiff} from goal)</>}
+                </p>
+            )}
         </div>
         <div class="top-actions">
             <a href="/" class="btn btn-secondary">All Charts</a>
@@ -114,22 +122,37 @@ const chartData = (window as any).__CHART_DATA__;
 const entries = (window as any).__CHART_ENTRIES__;
 
 const canvas = document.getElementById('chart-canvas') as HTMLCanvasElement;
+const labels = entries.map((e: any) => e.entry_date);
+
+const datasets: any[] = [{
+    label: chartData.y_axis_label,
+    data: entries.map((e: any) => e.score),
+    borderColor: '#1e4620',
+    backgroundColor: 'rgba(30, 70, 32, 0.08)',
+    pointBackgroundColor: entries.map((e: any) => e.annotation ? '#b8860b' : '#1e4620'),
+    pointRadius: entries.map((e: any) => e.annotation ? 6 : 3),
+    pointHoverRadius: entries.map((e: any) => e.annotation ? 8 : 5),
+    tension: 0.15,
+    fill: true,
+}];
+
+if (chartData.goal_score !== null && labels.length > 0) {
+    datasets.push({
+        label: 'Goal',
+        data: labels.map(() => chartData.goal_score),
+        borderColor: '#b8860b',
+        borderDash: [6, 4],
+        borderWidth: 2,
+        pointRadius: 0,
+        pointHoverRadius: 0,
+        fill: false,
+        tension: 0,
+    });
+}
+
 new Chart(canvas, {
     type: 'line',
-    data: {
-        labels: entries.map((e: any) => e.entry_date),
-        datasets: [{
-            label: chartData.y_axis_label,
-            data: entries.map((e: any) => e.score),
-            borderColor: '#1e4620',
-            backgroundColor: 'rgba(30, 70, 32, 0.08)',
-            pointBackgroundColor: entries.map((e: any) => e.annotation ? '#b8860b' : '#1e4620'),
-            pointRadius: entries.map((e: any) => e.annotation ? 6 : 3),
-            pointHoverRadius: entries.map((e: any) => e.annotation ? 8 : 5),
-            tension: 0.15,
-            fill: true,
-        }],
-    },
+    data: { labels, datasets },
     options: {
         responsive: true,
         scales: {
@@ -375,6 +398,7 @@ document.querySelectorAll('.edit-entry').forEach(btn => {
 <style>
 .top-bar { align-items: flex-start; }
 .subtitle { color: var(--text-light); font-size: 0.85rem; margin: 0.15rem 0 0; }
+.goal-line { color: var(--accent); font-size: 0.85rem; font-weight: 600; margin: 0.35rem 0 0; }
 .top-actions { display: flex; gap: 0.6rem; flex-shrink: 0; }
 .section-h { font-size: 1rem; color: var(--primary); margin: 0 0 1rem; }
 table { width: 100%; border-collapse: collapse; }
