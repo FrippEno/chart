@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getDB } from '../../../lib/db/client';
 import { updateChart } from '../../../lib/db/chart-queries';
+import { isValidChartColor } from '../../../lib/chart-colors';
 
 export const POST: APIRoute = async ({ request, locals }) => {
   try {
@@ -8,6 +9,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
     if (!data.id) {
       return new Response(JSON.stringify({ error: 'Chart ID is required' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    if (data.color && !isValidChartColor(data.color)) {
+      return new Response(JSON.stringify({ error: 'Invalid color' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
@@ -24,6 +31,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       date_end: data.date_end,
       goal_score: data.goal_score !== undefined ? (data.goal_score === '' ? null : Number(data.goal_score)) : undefined,
       goal_date: data.goal_date !== undefined ? (data.goal_date || null) : undefined,
+      color: data.color !== undefined ? data.color : undefined,
     });
 
     return new Response(JSON.stringify({ success: true }), {

@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getDB } from '../../../lib/db/client';
 import { createChart } from '../../../lib/db/chart-queries';
+import { isValidChartColor, DEFAULT_CHART_COLOR } from '../../../lib/chart-colors';
 
 export const POST: APIRoute = async ({ request, locals }) => {
   try {
@@ -15,6 +16,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
         });
       }
     }
+    if (data.color && !isValidChartColor(data.color)) {
+      return new Response(JSON.stringify({ error: 'Invalid color' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
     const db = getDB(locals.runtime?.env);
     const id = await createChart(db, {
@@ -27,6 +34,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       date_end: data.date_end,
       goal_score: data.goal_score !== undefined && data.goal_score !== '' ? Number(data.goal_score) : null,
       goal_date: data.goal_date || null,
+      color: data.color || DEFAULT_CHART_COLOR,
     });
 
     return new Response(JSON.stringify({ success: true, id }), {

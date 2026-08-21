@@ -35,16 +35,17 @@ export async function createChart(
     date_end: string;
     goal_score?: number | null;
     goal_date?: string | null;
+    color?: string | null;
   }
 ): Promise<number> {
   return safeQuery(async () => {
     const now = new Date().toISOString();
     await db
       .prepare(`
-        INSERT INTO charts (title, x_axis_label, y_axis_label, y_min, y_max, date_start, date_end, goal_score, goal_date, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO charts (title, x_axis_label, y_axis_label, y_min, y_max, date_start, date_end, goal_score, goal_date, color, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
-      .bind(data.title, data.x_axis_label, data.y_axis_label, data.y_min, data.y_max, data.date_start, data.date_end, data.goal_score ?? null, data.goal_date ?? null, now, now)
+      .bind(data.title, data.x_axis_label, data.y_axis_label, data.y_min, data.y_max, data.date_start, data.date_end, data.goal_score ?? null, data.goal_date ?? null, data.color ?? null, now, now)
       .run();
     const idResult = await db.prepare('SELECT last_insert_rowid() as id').first<{ id: number }>();
     return idResult?.id || 0;
@@ -64,6 +65,7 @@ export async function updateChart(
     date_end?: string;
     goal_score?: number | null;
     goal_date?: string | null;
+    color?: string | null;
   }
 ): Promise<void> {
   return safeQuery(async () => {
@@ -71,7 +73,7 @@ export async function updateChart(
     const fields: string[] = [];
     const values: any[] = [];
 
-    for (const key of ['title', 'x_axis_label', 'y_axis_label', 'y_min', 'y_max', 'date_start', 'date_end', 'goal_score', 'goal_date'] as const) {
+    for (const key of ['title', 'x_axis_label', 'y_axis_label', 'y_min', 'y_max', 'date_start', 'date_end', 'goal_score', 'goal_date', 'color'] as const) {
       if (data[key] !== undefined) {
         fields.push(`${key} = ?`);
         values.push(data[key]);

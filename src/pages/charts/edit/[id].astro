@@ -2,6 +2,7 @@
 import Layout from '../../../layouts/Layout.astro';
 import { getDB } from '../../../lib/db/client';
 import { getChartById } from '../../../lib/db/chart-queries';
+import { CHART_COLORS, DEFAULT_CHART_COLOR } from '../../../lib/chart-colors';
 
 const { id } = Astro.params;
 const db = getDB(Astro.locals.runtime?.env);
@@ -10,6 +11,8 @@ const chart = await getChartById(db, Number(id));
 if (!chart) {
     return Astro.redirect('/');
 }
+
+const currentColor = chart.color || DEFAULT_CHART_COLOR;
 ---
 
 <Layout title={`Edit ${chart.title} | Chart Tracker`}>
@@ -68,6 +71,18 @@ if (!chart) {
                 <div class="form-group">
                     <label for="goal_date">Goal Date (optional)</label>
                     <input type="date" id="goal_date" name="goal_date" value={chart.goal_date ?? ''} />
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Accent Color</label>
+                <div class="color-picker">
+                    {CHART_COLORS.map(c => (
+                        <label class="color-swatch">
+                            <input type="radio" name="color" value={c.hex} checked={c.hex === currentColor} />
+                            <span style={`background:${c.hex}`} title={c.name}></span>
+                        </label>
+                    ))}
                 </div>
             </div>
 
@@ -132,3 +147,20 @@ if (!chart) {
         }
     });
 </script>
+
+<style>
+.color-picker { display: flex; gap: 0.7rem; }
+.color-swatch { position: relative; cursor: pointer; }
+.color-swatch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.color-swatch span {
+    display: block;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    outline: 2px solid transparent;
+    outline-offset: 3px;
+    transition: outline-color 0.15s;
+}
+.color-swatch input:checked + span { outline-color: var(--text); }
+.color-swatch input:focus-visible + span { outline-color: var(--primary); }
+</style>
