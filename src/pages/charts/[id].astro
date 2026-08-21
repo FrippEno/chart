@@ -31,6 +31,7 @@ const goalDiff = chart.goal_score !== null && latest ? Math.abs(latest.score - c
         </div>
         <div class="top-actions">
             <a href="/" class="btn btn-secondary">All Charts</a>
+            <a href={`/charts/${chart.id}/focus`} id="focus-link" class="btn btn-secondary" target="_blank" rel="noopener">Focus View</a>
             <a href={`/charts/edit/${chart.id}`} class="btn btn-secondary">Edit</a>
         </div>
     </div>
@@ -119,120 +120,27 @@ const goalDiff = chart.goal_score !== null && latest ? Math.abs(latest.score - c
 </script>
 
 <script>
-import { Chart } from 'chart.js/auto';
 import Papa from 'papaparse';
+import { renderChart } from '../../lib/render-chart';
 
 const chartData = (window as any).__CHART_DATA__;
 const entries = (window as any).__CHART_ENTRIES__;
 
-// Data-mark colors. Main line color is per-chart (validated palette,
-// src/lib/chart-colors.ts); the goal line always stays gold — validated
-// against every palette option so any choice pairs safely with it.
-const CHART_MAIN = chartData.color || '#1f7a3d';
-const CHART_GOLD = '#b8860b';
-const GRID = '#e6e9e6';
-const AXIS_INK = '#8a938a';
-
 const canvas = document.getElementById('chart-canvas') as HTMLCanvasElement;
-const labels = entries.map((e: any) => e.entry_date);
+renderChart(canvas, chartData, entries);
 
-// Auto-expand each axis to fit the actual data if it falls outside the
-// chart's configured range, instead of silently clipping points at the edge.
-const scores = entries.map((e: any) => e.score);
-if (chartData.goal_score !== null) scores.push(chartData.goal_score);
-const dataYMin = scores.length ? Math.min(...scores) : chartData.y_min;
-const dataYMax = scores.length ? Math.max(...scores) : chartData.y_max;
-const effectiveYMin = Math.min(chartData.y_min, dataYMin);
-const effectiveYMax = Math.max(chartData.y_max, dataYMax);
-
-const datasets: any[] = [{
-    label: chartData.y_axis_label,
-    data: entries.map((e: any) => e.score),
-    borderColor: CHART_MAIN,
-    borderWidth: 2,
-    backgroundColor: `${CHART_MAIN}1a`, // ~10% opacity wash
-    pointBackgroundColor: entries.map((e: any) => e.annotation ? CHART_GOLD : CHART_MAIN),
-    pointBorderColor: '#fff',
-    pointBorderWidth: 2,
-    pointRadius: entries.map((e: any) => e.annotation ? 7 : 4),
-    pointHoverRadius: entries.map((e: any) => e.annotation ? 9 : 6),
-    tension: 0.15,
-    fill: true,
-}];
-
-const hasGoal = chartData.goal_score !== null && labels.length > 0;
-if (hasGoal) {
-    datasets.push({
-        label: 'Goal',
-        data: labels.map(() => chartData.goal_score),
-        borderColor: CHART_GOLD,
-        borderDash: [6, 4],
-        borderWidth: 2,
-        pointRadius: 0,
-        pointHoverRadius: 0,
-        fill: false,
-        tension: 0,
-    });
-}
-
-function chartFontSize() {
-    return window.innerWidth < 480 ? 10 : 12;
-}
-
-const chartInstance = new Chart(canvas, {
-    type: 'line',
-    data: { labels, datasets },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        scales: {
-            x: {
-                title: { display: true, text: chartData.x_axis_label, color: '#666', font: { size: chartFontSize() } },
-                grid: { display: false },
-                ticks: { color: AXIS_INK, font: { size: chartFontSize() }, autoSkip: true, maxRotation: 0 },
-                border: { color: GRID },
-            },
-            y: {
-                title: { display: true, text: chartData.y_axis_label, color: '#666', font: { size: chartFontSize() } },
-                min: effectiveYMin,
-                max: effectiveYMax,
-                grace: '5%',
-                grid: { color: GRID },
-                ticks: { color: AXIS_INK, font: { size: chartFontSize() } },
-                border: { display: false },
-            },
-        },
-        plugins: {
-            legend: {
-                display: hasGoal,
-                labels: { boxWidth: 22, boxHeight: 2, color: '#444', font: { size: 12 }, usePointStyle: false },
-            },
-            tooltip: {
-                backgroundColor: '#1e4620',
-                titleColor: '#fff',
-                bodyColor: '#fff',
-                padding: 10,
-                cornerRadius: 6,
-                titleFont: { weight: '600' },
-                bodyFont: { weight: '600' },
-                callbacks: {
-                    afterLabel: (ctx: any) => {
-                        if (ctx.dataset.label === 'Goal') return '';
-                        const annotation = entries[ctx.dataIndex]?.annotation;
-                        return annotation ? `Note: ${annotation}` : '';
-                    },
-                },
-            },
-        },
-    },
-});
-
-window.addEventListener('resize', () => {
-    const size = chartFontSize();
-    chartInstance.options.scales!.x!.ticks!.font = { size };
-    chartInstance.options.scales!.y!.ticks!.font = { size };
-    chartInstance.update('none');
+// ── Focus view (opens in its own popup window) ──────────────────────────
+const focusLink = document.getElementById('focus-link') as HTMLAnchorElement;
+focusLink?.addEventListener('click', (e) => {
+    e.preventDefault();
+    const w = 900, h = 700;
+    const left = Math.round((window.screen.width - w) / 2);
+    const top = Math.round((window.screen.height - h) / 2);
+    window.open(
+        focusLink.href,
+        `chart-focus-${chartData.id}`,
+        `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes,status=no,toolbar=no,menubar=no,location=no`
+    );
 });
 
 // ── Add entry ─────────────────────────────────────────────────────────

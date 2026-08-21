@@ -1,0 +1,86 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { getDB } from '../../../lib/db/client';
+import { getChartById, getEntriesForChart } from '../../../lib/db/chart-queries';
+
+const { id } = Astro.params;
+const chartId = Number(id);
+const db = getDB(Astro.locals.runtime?.env);
+const chart = await getChartById(db, chartId);
+
+if (!chart) {
+    return Astro.redirect('/');
+}
+
+const entries = await getEntriesForChart(db, chartId);
+const latest = entries.length > 0 ? entries[entries.length - 1] : null;
+const goalDiff = chart.goal_score !== null && latest ? Math.abs(latest.score - chart.goal_score) : null;
+---
+
+<Layout title={`${chart.title} | Chart Tracker`} wide>
+    <div class="focus-header">
+        <div>
+            <h1>{chart.title}</h1>
+            {chart.goal_score !== null && (
+                <p class="goal-line">
+                    &#127919; Goal: {chart.goal_score}{chart.goal_date && <> by {chart.goal_date}</>}
+                    {latest && <> &middot; Latest: {latest.score} ({goalDiff} from goal)</>}
+                </p>
+            )}
+        </div>
+        <button type="button" id="close-btn" class="close-btn" title="Close">&times;</button>
+    </div>
+
+    <div class="card focus-card">
+        <div class="chart-wrap focus-chart-wrap">
+            <canvas id="chart-canvas"></canvas>
+        </div>
+    </div>
+</Layout>
+
+<script define:vars={{ chart, entries }}>
+    window.__CHART_DATA__ = chart;
+    window.__CHART_ENTRIES__ = entries;
+</script>
+
+<script>
+import { renderChart } from '../../../lib/render-chart';
+
+const chartData = (window as any).__CHART_DATA__;
+const entries = (window as any).__CHART_ENTRIES__;
+
+const canvas = document.getElementById('chart-canvas') as HTMLCanvasElement;
+renderChart(canvas, chartData, entries);
+
+document.getElementById('close-btn')?.addEventListener('click', () => {
+    window.close();
+});
+</script>
+
+<style>
+h1 { margin: 0; }
+.focus-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+}
+.goal-line { color: var(--accent); font-size: 0.9rem; font-weight: 600; margin: 0.4rem 0 0; }
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 1.75rem;
+    line-height: 1;
+    color: var(--text-light);
+    cursor: pointer;
+    padding: 0.1rem 0.5rem;
+    border-radius: 4px;
+}
+.close-btn:hover { color: var(--text); background: #eee; }
+.focus-card { padding: 1.5rem; }
+.focus-chart-wrap { height: calc(100vh - 220px); min-height: 320px; }
+@media (max-width: 640px) {
+    .focus-chart-wrap { height: calc(100vh - 260px); }
+    .focus-card { padding: 1rem; }
+}
+</style>

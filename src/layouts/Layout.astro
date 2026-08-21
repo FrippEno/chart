@@ -1,8 +1,9 @@
 ---
 interface Props {
     title: string;
+    wide?: boolean;
 }
-const { title } = Astro.props;
+const { title, wide = false } = Astro.props;
 ---
 
 <html lang="en">
@@ -36,6 +37,9 @@ const { title } = Astro.props;
             max-width: 900px;
             margin: 0 auto;
             padding: 2rem 1.5rem 4rem;
+        }
+        .page.wide {
+            max-width: 1300px;
         }
         @media (max-width: 600px) {
             .page { padding: 1.25rem 1rem 3rem; }
@@ -117,7 +121,7 @@ const { title } = Astro.props;
     </style>
 </head>
 <body>
-    <div class="page">
+    <div class:list={['page', { wide }]}>
         <slot />
     </div>
 </body>
