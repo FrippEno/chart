@@ -36,7 +36,9 @@ const goalDiff = chart.goal_score !== null && latest ? Math.abs(latest.score - c
     </div>
 
     <div class="card">
-        <canvas id="chart-canvas" height="90"></canvas>
+        <div class="chart-wrap">
+            <canvas id="chart-canvas"></canvas>
+        </div>
     </div>
 
     <div class="card" style="margin-top: 1.5rem;">
@@ -82,29 +84,31 @@ const goalDiff = chart.goal_score !== null && latest ? Math.abs(latest.score - c
         {entries.length === 0 ? (
             <p style="color: var(--text-light); margin: 0;">No data points yet.</p>
         ) : (
-            <table id="entries-table">
-                <thead>
-                    <tr>
-                        <th>{chart.x_axis_label}</th>
-                        <th>{chart.y_axis_label}</th>
-                        <th>Annotation</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {entries.map(e => (
-                        <tr data-id={e.id}>
-                            <td class="cell-date">{e.entry_date}</td>
-                            <td class="cell-score">{e.score}</td>
-                            <td class="cell-annotation">{e.annotation || ''}</td>
-                            <td class="cell-actions">
-                                <button type="button" class="link-btn edit-entry">Edit</button>
-                                <button type="button" class="link-btn delete-entry">Delete</button>
-                            </td>
+            <div class="table-scroll">
+                <table id="entries-table">
+                    <thead>
+                        <tr>
+                            <th>{chart.x_axis_label}</th>
+                            <th>{chart.y_axis_label}</th>
+                            <th>Annotation</th>
+                            <th></th>
                         </tr>
-                    ))}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {entries.map(e => (
+                            <tr data-id={e.id}>
+                                <td class="cell-date">{e.entry_date}</td>
+                                <td class="cell-score">{e.score}</td>
+                                <td class="cell-annotation">{e.annotation || ''}</td>
+                                <td class="cell-actions">
+                                    <button type="button" class="link-btn edit-entry">Edit</button>
+                                    <button type="button" class="link-btn delete-entry">Delete</button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         )}
     </div>
 </Layout>
@@ -121,26 +125,47 @@ import Papa from 'papaparse';
 const chartData = (window as any).__CHART_DATA__;
 const entries = (window as any).__CHART_ENTRIES__;
 
+// Validated data-mark colors (dataviz skill: CVD-safe pairing, calibrated
+// steps of the brand hue — kept in sync with --chart-green/--chart-gold in
+// Layout.astro).
+const CHART_GREEN = '#1f7a3d';
+const CHART_GOLD = '#b8860b';
+const GRID = '#e6e9e6';
+const AXIS_INK = '#8a938a';
+
 const canvas = document.getElementById('chart-canvas') as HTMLCanvasElement;
 const labels = entries.map((e: any) => e.entry_date);
+
+// Auto-expand each axis to fit the actual data if it falls outside the
+// chart's configured range, instead of silently clipping points at the edge.
+const scores = entries.map((e: any) => e.score);
+if (chartData.goal_score !== null) scores.push(chartData.goal_score);
+const dataYMin = scores.length ? Math.min(...scores) : chartData.y_min;
+const dataYMax = scores.length ? Math.max(...scores) : chartData.y_max;
+const effectiveYMin = Math.min(chartData.y_min, dataYMin);
+const effectiveYMax = Math.max(chartData.y_max, dataYMax);
 
 const datasets: any[] = [{
     label: chartData.y_axis_label,
     data: entries.map((e: any) => e.score),
-    borderColor: '#1e4620',
-    backgroundColor: 'rgba(30, 70, 32, 0.08)',
-    pointBackgroundColor: entries.map((e: any) => e.annotation ? '#b8860b' : '#1e4620'),
-    pointRadius: entries.map((e: any) => e.annotation ? 6 : 3),
-    pointHoverRadius: entries.map((e: any) => e.annotation ? 8 : 5),
+    borderColor: CHART_GREEN,
+    borderWidth: 2,
+    backgroundColor: `${CHART_GREEN}1a`, // ~10% opacity wash
+    pointBackgroundColor: entries.map((e: any) => e.annotation ? CHART_GOLD : CHART_GREEN),
+    pointBorderColor: '#fff',
+    pointBorderWidth: 2,
+    pointRadius: entries.map((e: any) => e.annotation ? 7 : 4),
+    pointHoverRadius: entries.map((e: any) => e.annotation ? 9 : 6),
     tension: 0.15,
     fill: true,
 }];
 
-if (chartData.goal_score !== null && labels.length > 0) {
+const hasGoal = chartData.goal_score !== null && labels.length > 0;
+if (hasGoal) {
     datasets.push({
         label: 'Goal',
         data: labels.map(() => chartData.goal_score),
-        borderColor: '#b8860b',
+        borderColor: CHART_GOLD,
         borderDash: [6, 4],
         borderWidth: 2,
         pointRadius: 0,
@@ -150,23 +175,50 @@ if (chartData.goal_score !== null && labels.length > 0) {
     });
 }
 
-new Chart(canvas, {
+function chartFontSize() {
+    return window.innerWidth < 480 ? 10 : 12;
+}
+
+const chartInstance = new Chart(canvas, {
     type: 'line',
     data: { labels, datasets },
     options: {
         responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
         scales: {
-            x: { title: { display: true, text: chartData.x_axis_label } },
+            x: {
+                title: { display: true, text: chartData.x_axis_label, color: '#666', font: { size: chartFontSize() } },
+                grid: { display: false },
+                ticks: { color: AXIS_INK, font: { size: chartFontSize() }, autoSkip: true, maxRotation: 0 },
+                border: { color: GRID },
+            },
             y: {
-                title: { display: true, text: chartData.y_axis_label },
-                min: chartData.y_min,
-                max: chartData.y_max,
+                title: { display: true, text: chartData.y_axis_label, color: '#666', font: { size: chartFontSize() } },
+                min: effectiveYMin,
+                max: effectiveYMax,
+                grace: '5%',
+                grid: { color: GRID },
+                ticks: { color: AXIS_INK, font: { size: chartFontSize() } },
+                border: { display: false },
             },
         },
         plugins: {
+            legend: {
+                display: hasGoal,
+                labels: { boxWidth: 22, boxHeight: 2, color: '#444', font: { size: 12 }, usePointStyle: false },
+            },
             tooltip: {
+                backgroundColor: '#1e4620',
+                titleColor: '#fff',
+                bodyColor: '#fff',
+                padding: 10,
+                cornerRadius: 6,
+                titleFont: { weight: '600' },
+                bodyFont: { weight: '600' },
                 callbacks: {
                     afterLabel: (ctx: any) => {
+                        if (ctx.dataset.label === 'Goal') return '';
                         const annotation = entries[ctx.dataIndex]?.annotation;
                         return annotation ? `Note: ${annotation}` : '';
                     },
@@ -174,6 +226,13 @@ new Chart(canvas, {
             },
         },
     },
+});
+
+window.addEventListener('resize', () => {
+    const size = chartFontSize();
+    chartInstance.options.scales!.x!.ticks!.font = { size };
+    chartInstance.options.scales!.y!.ticks!.font = { size };
+    chartInstance.update('none');
 });
 
 // ── Add entry ─────────────────────────────────────────────────────────
@@ -401,12 +460,16 @@ document.querySelectorAll('.edit-entry').forEach(btn => {
 .goal-line { color: var(--accent); font-size: 0.85rem; font-weight: 600; margin: 0.35rem 0 0; }
 .top-actions { display: flex; gap: 0.6rem; flex-shrink: 0; }
 .section-h { font-size: 1rem; color: var(--primary); margin: 0 0 1rem; }
+
+.chart-wrap { position: relative; height: 340px; }
+
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 table { width: 100%; border-collapse: collapse; }
-th { text-align: left; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-light); padding: 0.5rem 0.6rem; border-bottom: 2px solid var(--border); }
+th { text-align: left; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-light); padding: 0.5rem 0.6rem; border-bottom: 2px solid var(--border); white-space: nowrap; }
 td { padding: 0.55rem 0.6rem; border-bottom: 1px solid #f0f0f0; font-size: 0.9rem; }
 tr:last-child td { border-bottom: none; }
 .cell-annotation { color: var(--text-light); }
-.link-btn { background: none; border: none; color: var(--accent); font-size: 0.82rem; font-weight: 600; cursor: pointer; padding: 0; margin-right: 0.75rem; }
+.link-btn { background: none; border: none; color: var(--accent); font-size: 0.82rem; font-weight: 600; cursor: pointer; padding: 0; margin-right: 0.75rem; white-space: nowrap; }
 .link-btn:hover { text-decoration: underline; }
 .editing input { padding: 0.35rem 0.5rem; font-size: 0.85rem; }
 .hint { color: var(--text-light); font-size: 0.82rem; margin: 0 0 0.9rem; }
@@ -418,5 +481,7 @@ tr:last-child td { border-bottom: none; }
 .preview-table tr.row-error { background: #fef2f2; color: #991b1b; }
 @media (max-width: 640px) {
     .top-bar { flex-direction: column; gap: 1rem; }
+    .chart-wrap { height: 260px; }
+    .card { padding: 1rem 1rem; }
 }
 </style>

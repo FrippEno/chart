@@ -17,6 +17,13 @@ const { title } = Astro.props;
             --border: #d8e2d8;
             --text: #222;
             --text-light: #666;
+            /* Data-mark colors: calibrated steps of the brand hue for chart use
+               (validated for CVD separation + contrast), distinct from --primary/
+               --accent which are UI chrome/ink. */
+            --chart-green: #1f7a3d;
+            --chart-gold: #b8860b;
+            --chart-grid: #e6e9e6;
+            --chart-axis: #8a938a;
         }
         * { box-sizing: border-box; }
         body {
@@ -29,6 +36,10 @@ const { title } = Astro.props;
             max-width: 900px;
             margin: 0 auto;
             padding: 2rem 1.5rem 4rem;
+        }
+        @media (max-width: 600px) {
+            .page { padding: 1.25rem 1rem 3rem; }
+            .form-row { grid-template-columns: 1fr; gap: 0; }
         }
         .top-bar {
             display: flex;
