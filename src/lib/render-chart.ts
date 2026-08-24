@@ -225,3 +225,28 @@ export function renderChart(canvas: HTMLCanvasElement, chartData: any, entries: 
 
     return chartInstance;
 }
+
+// Highlights one point on the chart (used by the focus-view slideshow) and,
+// if the chart is scrolled horizontally, scrolls that point into view.
+export function setActivePoint(chart: Chart, entries: any[], activeIndex: number | null): void {
+    const dataset = chart.data.datasets[0] as any;
+    const dense = entries.length > 60;
+    const baseR = dense ? 3 : 4;
+    const annR = dense ? 6 : 7;
+
+    dataset.pointRadius = entries.map((e: any, i: number) => {
+        const r = e.annotation ? annR : baseR;
+        return i === activeIndex ? r + 5 : r;
+    });
+    dataset.pointBorderColor = entries.map((_: any, i: number) => (i === activeIndex ? '#1e4620' : '#fff'));
+    dataset.pointBorderWidth = entries.map((_: any, i: number) => (i === activeIndex ? 3 : 2));
+    chart.update('none');
+
+    if (activeIndex === null) return;
+    const point = chart.getDatasetMeta(0).data[activeIndex] as any;
+    const scrollBox = chart.canvas.parentElement?.parentElement as HTMLElement | null;
+    if (point && scrollBox && scrollBox.scrollWidth > scrollBox.clientWidth) {
+        const target = point.x - scrollBox.clientWidth / 2;
+        scrollBox.scrollTo({ left: Math.max(0, target), behavior: 'smooth' });
+    }
+}

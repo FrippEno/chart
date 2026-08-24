@@ -28,7 +28,10 @@ const goalDiff = chart.goal_score !== null && latest ? Math.abs(latest.score - c
                 </p>
             )}
         </div>
-        <button type="button" id="close-btn" class="close-btn" title="Close">&times;</button>
+        <div class="focus-actions">
+            <button type="button" id="share-btn" class="btn btn-secondary">Share</button>
+            <a href={`/charts/${chart.id}`} class="btn btn-secondary">&larr; Back to Chart</a>
+        </div>
     </div>
 
     <div class="card focus-card">
@@ -42,6 +45,33 @@ const goalDiff = chart.goal_score !== null && latest ? Math.abs(latest.score - c
             <button type="button" class="chart-nav chart-nav-right" id="chart-nav-right" aria-label="Scroll chart right">&#8250;</button>
         </div>
     </div>
+
+    {entries.length === 0 ? (
+        <div class="card slideshow-card">
+            <p style="color: var(--text-light); margin: 0;">No data points yet.</p>
+        </div>
+    ) : (
+        <div class="card slideshow-card" id="slideshow-card">
+            <div class="slide-progress"><div class="slide-progress-fill" id="slide-progress-fill"></div></div>
+            <p class="slide-counter" id="slide-counter"></p>
+
+            <div class="slide-body" aria-live="polite">
+                <p class="slide-date" id="slide-date"></p>
+                <div class="slide-score-row">
+                    <span class="slide-score" id="slide-score"></span>
+                    <span class="slide-unit" id="slide-unit"></span>
+                </div>
+                <div class="slide-badges" id="slide-badges"></div>
+                <p class="slide-annotation" id="slide-annotation"></p>
+            </div>
+
+            <div class="slide-controls">
+                <button type="button" id="slide-prev" class="slide-btn" aria-label="Previous point">&#8249;</button>
+                <button type="button" id="slide-playpause" class="slide-btn slide-btn-primary" aria-label="Play">&#9654;</button>
+                <button type="button" id="slide-next" class="slide-btn" aria-label="Next point">&#8250;</button>
+            </div>
+        </div>
+    )}
 </Layout>
 
 <script define:vars={{ chart, entries }}>
@@ -50,17 +80,142 @@ const goalDiff = chart.goal_score !== null && latest ? Math.abs(latest.score - c
 </script>
 
 <script>
-import { renderChart } from '../../../lib/render-chart';
+import { renderChart, setActivePoint } from '../../../lib/render-chart';
 
 const chartData = (window as any).__CHART_DATA__;
-const entries = (window as any).__CHART_ENTRIES__;
+const entries = (window as any).__CHART_ENTRIES__ as { entry_date: string; score: number; annotation: string | null }[];
 
 const canvas = document.getElementById('chart-canvas') as HTMLCanvasElement;
-renderChart(canvas, chartData, entries);
+const chartInstance = renderChart(canvas, chartData, entries);
 
-document.getElementById('close-btn')?.addEventListener('click', () => {
-    window.close();
+// ── Share ─────────────────────────────────────────────────────────────
+const shareBtn = document.getElementById('share-btn') as HTMLButtonElement | null;
+shareBtn?.addEventListener('click', async () => {
+    const url = window.location.href;
+    if (navigator.share) {
+        try { await navigator.share({ title: chartData.title, url }); } catch { /* user cancelled */ }
+        return;
+    }
+    try {
+        await navigator.clipboard.writeText(url);
+        const original = shareBtn.textContent;
+        shareBtn.textContent = 'Link copied!';
+        setTimeout(() => { shareBtn.textContent = original; }, 2000);
+    } catch {
+        window.prompt('Copy this link:', url);
+    }
 });
+
+// ── Slideshow ─────────────────────────────────────────────────────────
+if (entries.length > 0) {
+    const scores = entries.map((e) => e.score);
+    const maxScore = Math.max(...scores);
+    const minScore = Math.min(...scores);
+
+    const dateEl = document.getElementById('slide-date')!;
+    const scoreEl = document.getElementById('slide-score')!;
+    const unitEl = document.getElementById('slide-unit')!;
+    const badgesEl = document.getElementById('slide-badges')!;
+    const annotationEl = document.getElementById('slide-annotation')!;
+    const counterEl = document.getElementById('slide-counter')!;
+    const fillEl = document.getElementById('slide-progress-fill')!;
+    const prevBtn = document.getElementById('slide-prev') as HTMLButtonElement;
+    const nextBtn = document.getElementById('slide-next') as HTMLButtonElement;
+    const playBtn = document.getElementById('slide-playpause') as HTMLButtonElement;
+    const slideshowCard = document.getElementById('slideshow-card')!;
+
+    let currentIndex = 0;
+    let isPlaying = false;
+
+    function formatDate(raw: string): string {
+        const d = new Date(`${raw}T00:00:00`);
+        if (isNaN(d.getTime())) return raw;
+        return d.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+    }
+
+    function round2(n: number): number {
+        return Math.round(n * 100) / 100;
+    }
+
+    function updatePlayButton() {
+        playBtn.innerHTML = isPlaying ? '&#10074;&#10074;' : '&#9654;';
+        playBtn.setAttribute('aria-label', isPlaying ? 'Pause' : 'Play');
+    }
+
+    function restartProgress() {
+        fillEl.style.animation = 'none';
+        void fillEl.offsetWidth;
+        fillEl.style.animation = 'slide-fill 10s linear forwards';
+        fillEl.style.animationPlayState = isPlaying ? 'running' : 'paused';
+    }
+
+    function renderSlide(index: number) {
+        currentIndex = index;
+        const entry = entries[index];
+
+        dateEl.textContent = formatDate(entry.entry_date);
+        scoreEl.textContent = String(entry.score);
+        unitEl.textContent = chartData.y_axis_label;
+        counterEl.textContent = `Point ${index + 1} of ${entries.length}`;
+        annotationEl.textContent = entry.annotation || 'No note for this entry.';
+        annotationEl.classList.toggle('empty', !entry.annotation);
+
+        const badges: string[] = [];
+        if (index > 0) {
+            const diff = round2(entry.score - entries[index - 1].score);
+            if (diff > 0) badges.push(`<span class="badge badge-up">&#9650; +${diff} vs previous</span>`);
+            else if (diff < 0) badges.push(`<span class="badge badge-down">&#9660; ${diff} vs previous</span>`);
+            else badges.push(`<span class="badge badge-flat">&#9679; No change vs previous</span>`);
+        }
+        if (chartData.goal_score !== null) {
+            const diff = round2(Math.abs(entry.score - chartData.goal_score));
+            badges.push(`<span class="badge badge-goal">&#127919; ${diff} from goal</span>`);
+        }
+        if (entry.score === maxScore) badges.push(`<span class="badge badge-high">&#128200; Highest so far</span>`);
+        if (entry.score === minScore) badges.push(`<span class="badge badge-low">&#128201; Lowest so far</span>`);
+        badgesEl.innerHTML = badges.join('');
+
+        setActivePoint(chartInstance, entries, index);
+        restartProgress();
+    }
+
+    function goTo(index: number) {
+        const n = entries.length;
+        renderSlide(((index % n) + n) % n);
+    }
+
+    function togglePlay() {
+        isPlaying = !isPlaying;
+        updatePlayButton();
+        fillEl.style.animationPlayState = isPlaying ? 'running' : 'paused';
+    }
+
+    fillEl.addEventListener('animationend', () => {
+        if (isPlaying) goTo(currentIndex + 1);
+    });
+
+    prevBtn.addEventListener('click', () => goTo(currentIndex - 1));
+    nextBtn.addEventListener('click', () => goTo(currentIndex + 1));
+    playBtn.addEventListener('click', togglePlay);
+
+    window.addEventListener('keydown', (e) => {
+        if ((e.target as HTMLElement)?.tagName === 'BUTTON') return;
+        if (e.key === 'ArrowLeft') { e.preventDefault(); goTo(currentIndex - 1); }
+        else if (e.key === 'ArrowRight') { e.preventDefault(); goTo(currentIndex + 1); }
+        else if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+    });
+
+    // Swipe on the info card (not the chart itself, which already scrolls
+    // horizontally to page through dense charts) to move between points.
+    let touchStartX = 0;
+    slideshowCard.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; }, { passive: true });
+    slideshowCard.addEventListener('touchend', (e) => {
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        if (Math.abs(dx) > 40) goTo(currentIndex + (dx < 0 ? 1 : -1));
+    });
+
+    renderSlide(0);
+}
 </script>
 
 <style>
@@ -70,22 +225,13 @@ h1 { margin: 0; }
     justify-content: space-between;
     align-items: flex-start;
     margin-bottom: 1.5rem;
+    gap: 1rem;
 }
 .goal-line { color: var(--accent); font-size: 0.9rem; font-weight: 600; margin: 0.4rem 0 0; }
-.close-btn {
-    background: none;
-    border: none;
-    font-size: 1.75rem;
-    line-height: 1;
-    color: var(--text-light);
-    cursor: pointer;
-    padding: 0.1rem 0.5rem;
-    border-radius: 4px;
-}
-.close-btn:hover { color: var(--text); background: #eee; }
+.focus-actions { display: flex; gap: 0.6rem; flex-shrink: 0; }
 .focus-card { padding: 1.5rem; }
 .chart-shell { position: relative; }
-.focus-chart-wrap { height: calc(100vh - 220px); min-height: 320px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.focus-chart-wrap { height: 340px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .chart-sizer { position: relative; height: 100%; min-width: 100%; }
 .chart-nav {
     display: none;
@@ -110,8 +256,56 @@ h1 { margin: 0; }
 .chart-nav.visible { display: flex; }
 .chart-nav-left { left: 4px; }
 .chart-nav-right { right: 4px; }
+
+.slideshow-card { margin-top: 1.5rem; padding: 1.75rem; text-align: center; }
+.slide-progress { width: 100%; height: 6px; background: var(--border); border-radius: 999px; overflow: hidden; margin-bottom: 0.6rem; }
+.slide-progress-fill { height: 100%; width: 0%; background: var(--accent); border-radius: 999px; }
+.slide-counter { color: var(--text-light); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 1.25rem; }
+.slide-date { font-size: 1.3rem; font-weight: 700; color: var(--primary); margin: 0 0 0.5rem; }
+.slide-score-row { display: flex; align-items: baseline; justify-content: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+.slide-score { font-size: 3.5rem; font-weight: 800; color: var(--text); line-height: 1; }
+.slide-unit { font-size: 1.1rem; color: var(--text-light); font-weight: 600; }
+.slide-badges { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; margin-bottom: 1.25rem; }
+.badge { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.7rem; border-radius: 999px; font-size: 0.8rem; font-weight: 700; background: #f0f3f0; color: var(--text); }
+.badge-up { background: #d1fae5; color: #065f46; }
+.badge-down { background: #fee2e2; color: #991b1b; }
+.badge-flat { background: #f0f3f0; color: var(--text-light); }
+.badge-goal { background: #fdf3d9; color: #92660a; }
+.badge-high { background: #dbeafe; color: #1e40af; }
+.badge-low { background: #ede9fe; color: #5b21b6; }
+.slide-annotation { font-size: 1.4rem; line-height: 1.5; color: var(--text); max-width: 640px; margin: 0 auto; font-weight: 500; }
+.slide-annotation.empty { color: var(--text-light); font-style: italic; font-weight: 400; }
+.slide-controls { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 1.75rem; }
+.slide-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--primary);
+    font-size: 1.3rem;
+    cursor: pointer;
+}
+.slide-btn:hover { background: #f5f8f5; }
+.slide-btn-primary { width: 58px; height: 58px; background: var(--primary); color: #fff; border-color: var(--primary); font-size: 1.4rem; }
+.slide-btn-primary:hover { opacity: 0.9; background: var(--primary); }
+
 @media (max-width: 640px) {
-    .focus-chart-wrap { height: calc(100vh - 260px); }
+    .focus-chart-wrap { height: 260px; }
     .focus-card { padding: 1rem; }
+    .focus-header { flex-direction: column; }
+    .slide-score { font-size: 2.6rem; }
+    .slide-annotation { font-size: 1.15rem; }
+    .slideshow-card { padding: 1.25rem; }
+}
+</style>
+
+<style is:global>
+@keyframes slide-fill {
+    from { width: 0%; }
+    to { width: 100%; }
 }
 </style>
