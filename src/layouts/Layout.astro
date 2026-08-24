@@ -3,8 +3,9 @@ interface Props {
     title: string;
     description?: string;
     wide?: boolean;
+    compact?: boolean;
 }
-const { title, description = 'A simple tool for logging and viewing data points over time.', wide = false } = Astro.props;
+const { title, description = 'A simple tool for logging and viewing data points over time.', wide = false, compact = false } = Astro.props;
 const ogImage = new URL('/images/og-image.png', Astro.site).toString();
 const canonicalUrl = new URL(Astro.url.pathname, Astro.site).toString();
 ---
@@ -56,8 +57,12 @@ const canonicalUrl = new URL(Astro.url.pathname, Astro.site).toString();
         .page.wide {
             max-width: 1300px;
         }
+        .page.compact {
+            padding: 1rem 1.5rem 1rem;
+        }
         @media (max-width: 600px) {
             .page { padding: 1.25rem 1rem 3rem; }
+            .page.compact { padding: 0.6rem 0.75rem 0.6rem; }
             .form-row { grid-template-columns: 1fr; gap: 0; }
         }
         .top-bar {
@@ -182,7 +187,7 @@ const canonicalUrl = new URL(Astro.url.pathname, Astro.site).toString();
     </style>
 </head>
 <body>
-    <div class:list={['page', { wide }]}>
+    <div class:list={['page', { wide, compact }]}>
         <slot />
     </div>
 </body>

@@ -24,7 +24,7 @@ const description = chart.goal_score !== null && latest
         : `${chart.x_axis_label} vs ${chart.y_axis_label}, ${chart.date_start} to ${chart.date_end}`;
 ---
 
-<Layout title={`${chart.title} | Chart Tracker`} description={description} wide>
+<Layout title={`${chart.title} | Chart Tracker`} description={description} wide compact>
     <div class="focus-header">
         <div>
             <h1>{chart.title}</h1>
@@ -226,19 +226,19 @@ if (entries.length > 0) {
 </script>
 
 <style>
-h1 { margin: 0; }
+h1 { margin: 0; font-size: 1.3rem; }
 .focus-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 1.5rem;
+    margin-bottom: 0.75rem;
     gap: 1rem;
 }
-.goal-line { color: var(--accent); font-size: 0.9rem; font-weight: 600; margin: 0.4rem 0 0; }
+.goal-line { color: var(--accent); font-size: 0.85rem; font-weight: 600; margin: 0.25rem 0 0; }
 .focus-actions { display: flex; gap: 0.6rem; flex-shrink: 0; }
-.focus-card { padding: 1.5rem; }
+.focus-card { padding: 0.85rem; }
 .chart-shell { position: relative; }
-.focus-chart-wrap { height: 340px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.focus-chart-wrap { height: 240px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .chart-sizer { position: relative; height: 100%; min-width: 100%; }
 .chart-nav {
     display: none;
@@ -264,49 +264,49 @@ h1 { margin: 0; }
 .chart-nav-left { left: 4px; }
 .chart-nav-right { right: 4px; }
 
-.slideshow-card { margin-top: 1.5rem; padding: 1.75rem; text-align: center; }
-.slide-progress { width: 100%; height: 6px; background: var(--border); border-radius: 999px; overflow: hidden; margin-bottom: 0.6rem; }
+.slideshow-card { margin-top: 0.75rem; padding: 0.9rem 1.25rem; text-align: center; }
+.slide-progress { width: 100%; height: 5px; background: var(--border); border-radius: 999px; overflow: hidden; margin-bottom: 0.4rem; }
 .slide-progress-fill { height: 100%; width: 0%; background: var(--accent); border-radius: 999px; }
-.slide-counter { color: var(--text-light); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 1.25rem; }
-.slide-date { font-size: 1.3rem; font-weight: 700; color: var(--primary); margin: 0 0 0.5rem; }
-.slide-score-row { display: flex; align-items: baseline; justify-content: center; gap: 0.5rem; margin-bottom: 0.75rem; }
-.slide-score { font-size: 3.5rem; font-weight: 800; color: var(--text); line-height: 1; }
-.slide-unit { font-size: 1.1rem; color: var(--text-light); font-weight: 600; }
-.slide-badges { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; margin-bottom: 1.25rem; }
-.badge { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.7rem; border-radius: 999px; font-size: 0.8rem; font-weight: 700; background: #f0f3f0; color: var(--text); }
+.slide-counter { color: var(--text-light); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 0.4rem; }
+.slide-date { font-size: 1.05rem; font-weight: 700; color: var(--primary); margin: 0 0 0.15rem; }
+.slide-score-row { display: flex; align-items: baseline; justify-content: center; gap: 0.4rem; margin-bottom: 0.35rem; }
+.slide-score { font-size: 2.4rem; font-weight: 800; color: var(--text); line-height: 1; }
+.slide-unit { font-size: 0.95rem; color: var(--text-light); font-weight: 600; }
+.slide-badges { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: center; margin-bottom: 0.5rem; }
+.badge { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.74rem; font-weight: 700; background: #f0f3f0; color: var(--text); }
 .badge-up { background: #d1fae5; color: #065f46; }
 .badge-down { background: #fee2e2; color: #991b1b; }
 .badge-flat { background: #f0f3f0; color: var(--text-light); }
 .badge-goal { background: #fdf3d9; color: #92660a; }
 .badge-high { background: #dbeafe; color: #1e40af; }
 .badge-low { background: #ede9fe; color: #5b21b6; }
-.slide-annotation { font-size: 1.4rem; line-height: 1.5; color: var(--text); max-width: 640px; margin: 0 auto; font-weight: 500; }
+.slide-annotation { font-size: 1.1rem; line-height: 1.35; color: var(--text); max-width: 640px; margin: 0 auto; font-weight: 500; }
 .slide-annotation.empty { color: var(--text-light); font-style: italic; font-weight: 400; }
-.slide-controls { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 1.75rem; }
+.slide-controls { display: flex; align-items: center; justify-content: center; gap: 0.9rem; margin-top: 0.75rem; }
 .slide-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 46px;
-    height: 46px;
+    width: 38px;
+    height: 38px;
     border-radius: 50%;
     border: 1px solid var(--border);
     background: #fff;
     color: var(--primary);
-    font-size: 1.3rem;
+    font-size: 1.1rem;
     cursor: pointer;
 }
 .slide-btn:hover { background: #f5f8f5; }
-.slide-btn-primary { width: 58px; height: 58px; background: var(--primary); color: #fff; border-color: var(--primary); font-size: 1.4rem; }
+.slide-btn-primary { width: 48px; height: 48px; background: var(--primary); color: #fff; border-color: var(--primary); font-size: 1.2rem; }
 .slide-btn-primary:hover { opacity: 0.9; background: var(--primary); }
 
 @media (max-width: 640px) {
-    .focus-chart-wrap { height: 260px; }
-    .focus-card { padding: 1rem; }
+    .focus-chart-wrap { height: 170px; }
+    .focus-card { padding: 0.6rem; }
     .focus-header { flex-direction: column; }
-    .slide-score { font-size: 2.6rem; }
-    .slide-annotation { font-size: 1.15rem; }
-    .slideshow-card { padding: 1.25rem; }
+    .slide-score { font-size: 2rem; }
+    .slide-annotation { font-size: 1rem; }
+    .slideshow-card { padding: 0.75rem 0.9rem; }
 }
 </style>
 
