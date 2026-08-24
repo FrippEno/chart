@@ -15,9 +15,16 @@ if (!chart) {
 const entries = await getEntriesForChart(db, chartId);
 const latest = entries.length > 0 ? entries[entries.length - 1] : null;
 const goalDiff = chart.goal_score !== null && latest ? Math.abs(latest.score - chart.goal_score) : null;
+
+const pointCount = `${entries.length} data point${entries.length === 1 ? '' : 's'}`;
+const description = chart.goal_score !== null && latest
+    ? `${pointCount} · Latest ${chart.y_axis_label}: ${latest.score} · Goal: ${chart.goal_score}`
+    : latest
+        ? `${pointCount} · Latest ${chart.y_axis_label}: ${latest.score}`
+        : `${chart.x_axis_label} vs ${chart.y_axis_label}, ${chart.date_start} to ${chart.date_end}`;
 ---
 
-<Layout title={`${chart.title} | Chart Tracker`}>
+<Layout title={`${chart.title} | Chart Tracker`} description={description}>
     <div class="top-bar">
         <div>
             <h1>{chart.title}</h1>

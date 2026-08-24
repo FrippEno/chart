@@ -1,9 +1,12 @@
 ---
 interface Props {
     title: string;
+    description?: string;
     wide?: boolean;
 }
-const { title, wide = false } = Astro.props;
+const { title, description = 'A simple tool for logging and viewing data points over time.', wide = false } = Astro.props;
+const ogImage = new URL('/images/og-image.png', Astro.site).toString();
+const canonicalUrl = new URL(Astro.url.pathname, Astro.site).toString();
 ---
 
 <html lang="en">
@@ -11,6 +14,18 @@ const { title, wide = false } = Astro.props;
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{title}</title>
+    <meta name="description" content={description} />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:url" content={canonicalUrl} />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
     <style is:global>
         :root {
             --primary: #1e4620;
