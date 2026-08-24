@@ -229,6 +229,15 @@ if (entries.length > 0) {
     }
 
     function togglePlay() {
+        if (!isPlaying && currentIndex === -1) {
+            // Pressing play on the welcome slide should jump straight into
+            // the data, not sit through a 10-second countdown first.
+            isPlaying = true;
+            updatePlayButton();
+            goTo(0);
+            return;
+        }
+
         isPlaying = !isPlaying;
         updatePlayButton();
         fillEl.style.animationPlayState = isPlaying ? 'running' : 'paused';
