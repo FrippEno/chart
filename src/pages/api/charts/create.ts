@@ -22,6 +22,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
         headers: { 'Content-Type': 'application/json' },
       });
     }
+    if (data.value_type && data.value_type !== 'number' && data.value_type !== 'money') {
+      return new Response(JSON.stringify({ error: 'Invalid chart type' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
     const db = getDB(locals.runtime?.env);
     const id = await createChart(db, {
@@ -35,6 +41,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       goal_score: data.goal_score !== undefined && data.goal_score !== '' ? Number(data.goal_score) : null,
       goal_date: data.goal_date || null,
       color: data.color || DEFAULT_CHART_COLOR,
+      value_type: data.value_type === 'money' ? 'money' : 'number',
     });
 
     return new Response(JSON.stringify({ success: true, id }), {

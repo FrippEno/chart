@@ -1,7 +1,7 @@
-// Charts whose y-axis label mentions "$" (e.g. "Savings ($)", "Net worth ($)")
-// have their values rendered as currency instead of a bare number.
-export function isMoneyLabel(label: string): boolean {
-    return /\$/.test(label);
+import type { ChartValueType } from './db/types';
+
+export function isMoney(valueType: ChartValueType): boolean {
+    return valueType === 'money';
 }
 
 const currencyFormatter = new Intl.NumberFormat('en-US', {
@@ -11,7 +11,7 @@ const currencyFormatter = new Intl.NumberFormat('en-US', {
     maximumFractionDigits: 2,
 });
 
-export function formatMetric(rawValue: number, label: string): string {
+export function formatMetric(rawValue: number, valueType: ChartValueType): string {
     const value = Math.round(rawValue * 100) / 100;
-    return isMoneyLabel(label) ? currencyFormatter.format(value) : String(value);
+    return isMoney(valueType) ? currencyFormatter.format(value) : String(value);
 }

@@ -24,7 +24,7 @@ const isAuthed = !!user && user.is_admin === 1;
 const entries = await getEntriesForChart(db, chartId);
 const latest = entries.length > 0 ? entries[entries.length - 1] : null;
 const goalDiff = chart.goal_score !== null && latest ? Math.abs(latest.score - chart.goal_score) : null;
-const fmt = (n: number) => formatMetric(n, chart.y_axis_label);
+const fmt = (n: number) => formatMetric(n, chart.value_type);
 
 const pointCount = `${entries.length} data point${entries.length === 1 ? '' : 's'}`;
 const description = chart.goal_score !== null && latest

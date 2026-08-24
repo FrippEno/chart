@@ -194,7 +194,7 @@ export function renderChart(canvas: HTMLCanvasElement, chartData: any, entries: 
                     ticks: {
                         color: AXIS_INK,
                         font: { size: chartFontSize() },
-                        callback: (value: any) => formatMetric(Number(value), chartData.y_axis_label),
+                        callback: (value: any) => formatMetric(Number(value), chartData.value_type),
                     },
                     border: { display: false },
                 },
@@ -208,7 +208,7 @@ export function renderChart(canvas: HTMLCanvasElement, chartData: any, entries: 
                     enabled: false,
                     external: externalTooltipHandler,
                     callbacks: {
-                        label: (ctx: any) => `${ctx.dataset.label}: ${formatMetric(ctx.parsed.y, chartData.y_axis_label)}`,
+                        label: (ctx: any) => `${ctx.dataset.label}: ${formatMetric(ctx.parsed.y, chartData.value_type)}`,
                         afterLabel: (ctx: any) => {
                             if (ctx.dataset.label === 'Goal') return '';
                             const annotation = entries[ctx.dataIndex]?.annotation;

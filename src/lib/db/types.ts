@@ -1,5 +1,7 @@
 // Database Types for chart-tracker
 
+export type ChartValueType = 'number' | 'money';
+
 export interface Chart {
   id: number;
   title: string;
@@ -12,6 +14,7 @@ export interface Chart {
   goal_score: number | null;
   goal_date: string | null;
   color: string | null;
+  value_type: ChartValueType;
   created_at: string;
   updated_at: string;
 }

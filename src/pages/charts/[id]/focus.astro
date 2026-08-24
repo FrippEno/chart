@@ -17,7 +17,7 @@ if (!chart) {
 const entries = await getEntriesForChart(db, chartId);
 const latest = entries.length > 0 ? entries[entries.length - 1] : null;
 const goalDiff = chart.goal_score !== null && latest ? Math.abs(latest.score - chart.goal_score) : null;
-const fmt = (n: number) => formatMetric(n, chart.y_axis_label);
+const fmt = (n: number) => formatMetric(n, chart.value_type);
 const accentColor = chart.color || DEFAULT_CHART_COLOR;
 
 const pointCount = `${entries.length} data point${entries.length === 1 ? '' : 's'}`;
@@ -100,7 +100,7 @@ const description = chart.goal_score !== null && latest
 
 <script>
 import { renderChart, setActivePoint } from '../../../lib/render-chart';
-import { formatMetric, isMoneyLabel } from '../../../lib/format';
+import { formatMetric, isMoney } from '../../../lib/format';
 
 const chartData = (window as any).__CHART_DATA__;
 const entries = (window as any).__CHART_ENTRIES__ as { entry_date: string; score: number; annotation: string | null }[];
@@ -149,8 +149,8 @@ if (entries.length > 0) {
     // -1 is a welcome/how-to slide shown before the first real data point.
     let currentIndex = -1;
     let isPlaying = false;
-    const moneyChart = isMoneyLabel(chartData.y_axis_label);
-    const fmt = (n: number) => formatMetric(n, chartData.y_axis_label);
+    const moneyChart = isMoney(chartData.value_type);
+    const fmt = (n: number) => formatMetric(n, chartData.value_type);
 
     function formatDate(raw: string): string {
         const d = new Date(`${raw}T00:00:00`);
