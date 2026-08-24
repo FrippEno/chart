@@ -2,6 +2,8 @@
 import Layout from '../../../layouts/Layout.astro';
 import { getDB } from '../../../lib/db/client';
 import { getChartById, getEntriesForChart } from '../../../lib/db/chart-queries';
+import { formatMetric } from '../../../lib/format';
+import { DEFAULT_CHART_COLOR } from '../../../lib/chart-colors';
 
 const { id } = Astro.params;
 const chartId = Number(id);
@@ -15,12 +17,14 @@ if (!chart) {
 const entries = await getEntriesForChart(db, chartId);
 const latest = entries.length > 0 ? entries[entries.length - 1] : null;
 const goalDiff = chart.goal_score !== null && latest ? Math.abs(latest.score - chart.goal_score) : null;
+const fmt = (n: number) => formatMetric(n, chart.y_axis_label);
+const accentColor = chart.color || DEFAULT_CHART_COLOR;
 
 const pointCount = `${entries.length} data point${entries.length === 1 ? '' : 's'}`;
 const description = chart.goal_score !== null && latest
-    ? `${pointCount} · Latest ${chart.y_axis_label}: ${latest.score} · Goal: ${chart.goal_score}`
+    ? `${pointCount} · Latest ${chart.y_axis_label}: ${fmt(latest.score)} · Goal: ${fmt(chart.goal_score)}`
     : latest
-        ? `${pointCount} · Latest ${chart.y_axis_label}: ${latest.score}`
+        ? `${pointCount} · Latest ${chart.y_axis_label}: ${fmt(latest.score)}`
         : `${chart.x_axis_label} vs ${chart.y_axis_label}, ${chart.date_start} to ${chart.date_end}`;
 ---
 
@@ -30,8 +34,8 @@ const description = chart.goal_score !== null && latest
             <h1>{chart.title}</h1>
             {chart.goal_score !== null && (
                 <p class="goal-line">
-                    &#127919; Goal: {chart.goal_score}{chart.goal_date && <> by {chart.goal_date}</>}
-                    {latest && <> &middot; Latest: {latest.score} ({goalDiff} from goal)</>}
+                    &#127919; Goal: {fmt(chart.goal_score)}{chart.goal_date && <> by {chart.goal_date}</>}
+                    {latest && <> &middot; Latest: {fmt(latest.score)} ({fmt(goalDiff!)} from goal)</>}
                 </p>
             )}
         </div>
@@ -58,7 +62,7 @@ const description = chart.goal_score !== null && latest
             <p style="color: var(--text-light); margin: 0;">No data points yet.</p>
         </div>
     ) : (
-        <div class="card slideshow-card" id="slideshow-card">
+        <div class="card slideshow-card" id="slideshow-card" style={`--chart-accent: ${accentColor}`}>
             <div class="slide-progress"><div class="slide-progress-fill" id="slide-progress-fill"></div></div>
             <p class="slide-counter" id="slide-counter"></p>
 
@@ -88,6 +92,7 @@ const description = chart.goal_score !== null && latest
 
 <script>
 import { renderChart, setActivePoint } from '../../../lib/render-chart';
+import { formatMetric, isMoneyLabel } from '../../../lib/format';
 
 const chartData = (window as any).__CHART_DATA__;
 const entries = (window as any).__CHART_ENTRIES__ as { entry_date: string; score: number; annotation: string | null }[];
@@ -133,15 +138,13 @@ if (entries.length > 0) {
 
     let currentIndex = 0;
     let isPlaying = false;
+    const moneyChart = isMoneyLabel(chartData.y_axis_label);
+    const fmt = (n: number) => formatMetric(n, chartData.y_axis_label);
 
     function formatDate(raw: string): string {
         const d = new Date(`${raw}T00:00:00`);
         if (isNaN(d.getTime())) return raw;
         return d.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
-    }
-
-    function round2(n: number): number {
-        return Math.round(n * 100) / 100;
     }
 
     function updatePlayButton() {
@@ -156,27 +159,34 @@ if (entries.length > 0) {
         fillEl.style.animationPlayState = isPlaying ? 'running' : 'paused';
     }
 
+    function pulseSlideBody() {
+        const body = document.querySelector('.slide-body') as HTMLElement;
+        body.style.animation = 'none';
+        void body.offsetWidth;
+        body.style.animation = 'slide-pop 0.25s ease';
+    }
+
     function renderSlide(index: number) {
         currentIndex = index;
         const entry = entries[index];
 
         dateEl.textContent = formatDate(entry.entry_date);
-        scoreEl.textContent = String(entry.score);
-        unitEl.textContent = chartData.y_axis_label;
+        scoreEl.textContent = fmt(entry.score);
+        unitEl.textContent = moneyChart ? '' : chartData.y_axis_label;
         counterEl.textContent = `Point ${index + 1} of ${entries.length}`;
         annotationEl.textContent = entry.annotation || 'No note for this entry.';
         annotationEl.classList.toggle('empty', !entry.annotation);
 
         const badges: string[] = [];
         if (index > 0) {
-            const diff = round2(entry.score - entries[index - 1].score);
-            if (diff > 0) badges.push(`<span class="badge badge-up">&#9650; +${diff} vs previous</span>`);
-            else if (diff < 0) badges.push(`<span class="badge badge-down">&#9660; ${diff} vs previous</span>`);
+            const diff = entry.score - entries[index - 1].score;
+            if (diff > 0) badges.push(`<span class="badge badge-up">&#9650; +${fmt(diff)} vs previous</span>`);
+            else if (diff < 0) badges.push(`<span class="badge badge-down">&#9660; ${fmt(diff)} vs previous</span>`);
             else badges.push(`<span class="badge badge-flat">&#9679; No change vs previous</span>`);
         }
         if (chartData.goal_score !== null) {
-            const diff = round2(Math.abs(entry.score - chartData.goal_score));
-            badges.push(`<span class="badge badge-goal">&#127919; ${diff} from goal</span>`);
+            const diff = Math.abs(entry.score - chartData.goal_score);
+            badges.push(`<span class="badge badge-goal">&#127919; ${fmt(diff)} from goal</span>`);
         }
         if (entry.score === maxScore) badges.push(`<span class="badge badge-high">&#128200; Highest so far</span>`);
         if (entry.score === minScore) badges.push(`<span class="badge badge-low">&#128201; Lowest so far</span>`);
@@ -184,6 +194,7 @@ if (entries.length > 0) {
 
         setActivePoint(chartInstance, entries, index);
         restartProgress();
+        pulseSlideBody();
     }
 
     function goTo(index: number) {
@@ -264,13 +275,41 @@ h1 { margin: 0; font-size: 1.3rem; }
 .chart-nav-left { left: 4px; }
 .chart-nav-right { right: 4px; }
 
-.slideshow-card { margin-top: 0.75rem; padding: 0.9rem 1.25rem; text-align: center; }
-.slide-progress { width: 100%; height: 5px; background: var(--border); border-radius: 999px; overflow: hidden; margin-bottom: 0.4rem; }
-.slide-progress-fill { height: 100%; width: 0%; background: var(--accent); border-radius: 999px; }
-.slide-counter { color: var(--text-light); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 0.4rem; }
+.slideshow-card {
+    margin-top: 0.75rem;
+    padding: 0.9rem 1.25rem;
+    text-align: center;
+    border-top: 4px solid var(--chart-accent, var(--primary));
+    position: relative;
+    overflow: hidden;
+}
+.slideshow-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--chart-accent, var(--primary));
+    opacity: 0.05;
+    pointer-events: none;
+}
+.slide-progress { position: relative; width: 100%; height: 5px; background: var(--border); border-radius: 999px; overflow: hidden; margin-bottom: 0.4rem; }
+.slide-progress-fill { height: 100%; width: 0%; background: var(--chart-accent, var(--accent)); border-radius: 999px; }
+.slide-counter {
+    position: relative;
+    display: inline-block;
+    color: var(--text-light);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: #fff;
+    border-radius: 999px;
+    padding: 0.15rem 0.65rem;
+    margin: 0 0 0.5rem;
+}
+.slide-body { position: relative; }
 .slide-date { font-size: 1.05rem; font-weight: 700; color: var(--primary); margin: 0 0 0.15rem; }
 .slide-score-row { display: flex; align-items: baseline; justify-content: center; gap: 0.4rem; margin-bottom: 0.35rem; }
-.slide-score { font-size: 2.4rem; font-weight: 800; color: var(--text); line-height: 1; }
+.slide-score { font-size: 2.5rem; font-weight: 800; color: var(--chart-accent, var(--text)); line-height: 1; }
 .slide-unit { font-size: 0.95rem; color: var(--text-light); font-weight: 600; }
 .slide-badges { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: center; margin-bottom: 0.5rem; }
 .badge { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.74rem; font-weight: 700; background: #f0f3f0; color: var(--text); }
@@ -314,5 +353,9 @@ h1 { margin: 0; font-size: 1.3rem; }
 @keyframes slide-fill {
     from { width: 0%; }
     to { width: 100%; }
+}
+@keyframes slide-pop {
+    from { opacity: 0; transform: translateY(6px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
 }
 </style>

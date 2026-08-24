@@ -2,6 +2,7 @@
 import Layout from '../../layouts/Layout.astro';
 import { getDB } from '../../lib/db/client';
 import { getChartById, getEntriesForChart } from '../../lib/db/chart-queries';
+import { formatMetric } from '../../lib/format';
 
 const { id } = Astro.params;
 const chartId = Number(id);
@@ -15,12 +16,13 @@ if (!chart) {
 const entries = await getEntriesForChart(db, chartId);
 const latest = entries.length > 0 ? entries[entries.length - 1] : null;
 const goalDiff = chart.goal_score !== null && latest ? Math.abs(latest.score - chart.goal_score) : null;
+const fmt = (n: number) => formatMetric(n, chart.y_axis_label);
 
 const pointCount = `${entries.length} data point${entries.length === 1 ? '' : 's'}`;
 const description = chart.goal_score !== null && latest
-    ? `${pointCount} · Latest ${chart.y_axis_label}: ${latest.score} · Goal: ${chart.goal_score}`
+    ? `${pointCount} · Latest ${chart.y_axis_label}: ${fmt(latest.score)} · Goal: ${fmt(chart.goal_score)}`
     : latest
-        ? `${pointCount} · Latest ${chart.y_axis_label}: ${latest.score}`
+        ? `${pointCount} · Latest ${chart.y_axis_label}: ${fmt(latest.score)}`
         : `${chart.x_axis_label} vs ${chart.y_axis_label}, ${chart.date_start} to ${chart.date_end}`;
 ---
 
@@ -28,11 +30,11 @@ const description = chart.goal_score !== null && latest
     <div class="top-bar">
         <div>
             <h1>{chart.title}</h1>
-            <p class="subtitle">{chart.date_start} &ndash; {chart.date_end} &middot; {chart.y_axis_label} range {chart.y_min}&ndash;{chart.y_max}</p>
+            <p class="subtitle">{chart.date_start} &ndash; {chart.date_end} &middot; {chart.y_axis_label} range {fmt(chart.y_min)}&ndash;{fmt(chart.y_max)}</p>
             {chart.goal_score !== null && (
                 <p class="goal-line">
-                    &#127919; Goal: {chart.goal_score}{chart.goal_date && <> by {chart.goal_date}</>}
-                    {latest && <> &middot; Latest: {latest.score} ({goalDiff} from goal)</>}
+                    &#127919; Goal: {fmt(chart.goal_score)}{chart.goal_date && <> by {chart.goal_date}</>}
+                    {latest && <> &middot; Latest: {fmt(latest.score)} ({fmt(goalDiff!)} from goal)</>}
                 </p>
             )}
         </div>
@@ -112,7 +114,7 @@ const description = chart.goal_score !== null && latest
                         {entries.map(e => (
                             <tr data-id={e.id}>
                                 <td class="cell-date">{e.entry_date}</td>
-                                <td class="cell-score">{e.score}</td>
+                                <td class="cell-score" data-score={e.score}>{fmt(e.score)}</td>
                                 <td class="cell-annotation">{e.annotation || ''}</td>
                                 <td class="cell-actions">
                                     <button type="button" class="link-btn edit-entry">Edit</button>
@@ -331,7 +333,7 @@ document.querySelectorAll('.edit-entry').forEach(btn => {
         const actionsCell = row.querySelector('.cell-actions')!;
 
         const currentDate = dateCell.textContent!.trim();
-        const currentScore = scoreCell.textContent!.trim();
+        const currentScore = (scoreCell as HTMLElement).dataset.score!;
         const currentAnnotation = annotationCell.textContent!.trim();
 
         dateCell.innerHTML = `<input type="date" class="edit-date" value="${currentDate}" min="${chartData.date_start}" max="${chartData.date_end}" />`;

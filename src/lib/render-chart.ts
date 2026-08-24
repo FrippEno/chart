@@ -1,4 +1,5 @@
 import { Chart } from 'chart.js/auto';
+import { formatMetric } from './format';
 
 // Data-mark colors. Main line color is per-chart (validated palette,
 // src/lib/chart-colors.ts); the goal line always stays gold — validated
@@ -190,7 +191,11 @@ export function renderChart(canvas: HTMLCanvasElement, chartData: any, entries: 
                     max: effectiveYMax,
                     grace: '5%',
                     grid: { color: GRID },
-                    ticks: { color: AXIS_INK, font: { size: chartFontSize() } },
+                    ticks: {
+                        color: AXIS_INK,
+                        font: { size: chartFontSize() },
+                        callback: (value: any) => formatMetric(Number(value), chartData.y_axis_label),
+                    },
                     border: { display: false },
                 },
             },
@@ -203,6 +208,7 @@ export function renderChart(canvas: HTMLCanvasElement, chartData: any, entries: 
                     enabled: false,
                     external: externalTooltipHandler,
                     callbacks: {
+                        label: (ctx: any) => `${ctx.dataset.label}: ${formatMetric(ctx.parsed.y, chartData.y_axis_label)}`,
                         afterLabel: (ctx: any) => {
                             if (ctx.dataset.label === 'Goal') return '';
                             const annotation = entries[ctx.dataIndex]?.annotation;
