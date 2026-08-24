@@ -3,6 +3,7 @@ import Layout from '../layouts/Layout.astro';
 import { getDB } from '../lib/db/client';
 import { getAllCharts } from '../lib/db/chart-queries';
 import { DEFAULT_CHART_COLOR } from '../lib/chart-colors';
+import { formatMetric } from '../lib/format';
 
 const db = getDB(Astro.locals.runtime?.env);
 const charts = await getAllCharts(db);
@@ -25,7 +26,7 @@ const charts = await getAllCharts(db);
                     <span class="chart-dot" style={`background:${c.color || DEFAULT_CHART_COLOR}`}></span>
                     <div class="chart-info">
                         <div class="chart-title">{c.title}</div>
-                        <div class="chart-meta">{c.date_start} &ndash; {c.date_end} &middot; {c.y_axis_label} ({c.y_min}&ndash;{c.y_max})</div>
+                        <div class="chart-meta">{c.date_start} &ndash; {c.date_end} &middot; {c.y_axis_label} ({formatMetric(c.y_min, c.y_axis_label)}&ndash;{formatMetric(c.y_max, c.y_axis_label)})</div>
                     </div>
                     <div class="chart-count">{c.entry_count} {c.entry_count === 1 ? 'point' : 'points'}</div>
                 </a>

@@ -67,13 +67,21 @@ const description = chart.goal_score !== null && latest
             <p class="slide-counter" id="slide-counter"></p>
 
             <div class="slide-body" aria-live="polite">
-                <p class="slide-date" id="slide-date"></p>
-                <div class="slide-score-row">
-                    <span class="slide-score" id="slide-score"></span>
-                    <span class="slide-unit" id="slide-unit"></span>
+                <div class="slide-welcome" id="slide-welcome">
+                    <p class="slide-welcome-title">&#128075; Welcome</p>
+                    <p class="slide-welcome-text">
+                        Swipe or use the arrows to move between points. Press play to auto-advance every 10 seconds &mdash; the chart above highlights whichever point is showing.
+                    </p>
                 </div>
-                <div class="slide-badges" id="slide-badges"></div>
-                <p class="slide-annotation" id="slide-annotation"></p>
+                <div class="slide-point" id="slide-point">
+                    <p class="slide-date" id="slide-date"></p>
+                    <div class="slide-score-row">
+                        <span class="slide-score" id="slide-score"></span>
+                        <span class="slide-unit" id="slide-unit"></span>
+                    </div>
+                    <div class="slide-badges" id="slide-badges"></div>
+                    <p class="slide-annotation" id="slide-annotation"></p>
+                </div>
             </div>
 
             <div class="slide-controls">
@@ -124,6 +132,8 @@ if (entries.length > 0) {
     const maxScore = Math.max(...scores);
     const minScore = Math.min(...scores);
 
+    const welcomeEl = document.getElementById('slide-welcome')!;
+    const pointEl = document.getElementById('slide-point')!;
     const dateEl = document.getElementById('slide-date')!;
     const scoreEl = document.getElementById('slide-score')!;
     const unitEl = document.getElementById('slide-unit')!;
@@ -136,7 +146,8 @@ if (entries.length > 0) {
     const playBtn = document.getElementById('slide-playpause') as HTMLButtonElement;
     const slideshowCard = document.getElementById('slideshow-card')!;
 
-    let currentIndex = 0;
+    // -1 is a welcome/how-to slide shown before the first real data point.
+    let currentIndex = -1;
     let isPlaying = false;
     const moneyChart = isMoneyLabel(chartData.y_axis_label);
     const fmt = (n: number) => formatMetric(n, chartData.y_axis_label);
@@ -168,6 +179,20 @@ if (entries.length > 0) {
 
     function renderSlide(index: number) {
         currentIndex = index;
+
+        if (index === -1) {
+            welcomeEl.style.display = '';
+            pointEl.style.display = 'none';
+            counterEl.textContent = 'Welcome';
+            setActivePoint(chartInstance, entries, null);
+            restartProgress();
+            pulseSlideBody();
+            return;
+        }
+
+        welcomeEl.style.display = 'none';
+        pointEl.style.display = '';
+
         const entry = entries[index];
 
         dateEl.textContent = formatDate(entry.entry_date);
@@ -198,8 +223,9 @@ if (entries.length > 0) {
     }
 
     function goTo(index: number) {
-        const n = entries.length;
-        renderSlide(((index % n) + n) % n);
+        const n = entries.length + 1; // +1 for the welcome slide
+        const shifted = ((index + 1) % n + n) % n;
+        renderSlide(shifted - 1);
     }
 
     function togglePlay() {
@@ -232,7 +258,7 @@ if (entries.length > 0) {
         if (Math.abs(dx) > 40) goTo(currentIndex + (dx < 0 ? 1 : -1));
     });
 
-    renderSlide(0);
+    renderSlide(-1);
 }
 </script>
 
@@ -307,6 +333,8 @@ h1 { margin: 0; font-size: 1.3rem; }
     margin: 0 0 0.5rem;
 }
 .slide-body { position: relative; }
+.slide-welcome-title { font-size: 1.3rem; font-weight: 800; color: var(--chart-accent, var(--primary)); margin: 0 0 0.4rem; }
+.slide-welcome-text { font-size: 0.95rem; line-height: 1.45; color: var(--text); max-width: 460px; margin: 0 auto; }
 .slide-date { font-size: 1.05rem; font-weight: 700; color: var(--primary); margin: 0 0 0.15rem; }
 .slide-score-row { display: flex; align-items: baseline; justify-content: center; gap: 0.4rem; margin-bottom: 0.35rem; }
 .slide-score { font-size: 2.5rem; font-weight: 800; color: var(--chart-accent, var(--text)); line-height: 1; }
