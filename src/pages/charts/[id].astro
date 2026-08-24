@@ -38,8 +38,11 @@ const goalDiff = chart.goal_score !== null && latest ? Math.abs(latest.score - c
 
     <div class="card">
         <div class="chart-wrap">
-            <canvas id="chart-canvas"></canvas>
+            <div class="chart-sizer">
+                <canvas id="chart-canvas"></canvas>
+            </div>
         </div>
+        <p class="scroll-hint" id="chart-scroll-hint">Scroll to see more &rarr;</p>
     </div>
 
     <div class="card" style="margin-top: 1.5rem;">
@@ -369,7 +372,9 @@ document.querySelectorAll('.edit-entry').forEach(btn => {
 .top-actions { display: flex; gap: 0.6rem; flex-shrink: 0; }
 .section-h { font-size: 1rem; color: var(--primary); margin: 0 0 1rem; }
 
-.chart-wrap { position: relative; height: 340px; }
+.chart-wrap { height: 340px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.chart-sizer { position: relative; height: 100%; min-width: 100%; }
+.scroll-hint { display: none; margin: 0.5rem 0 0; font-size: 0.78rem; color: var(--text-light); text-align: right; }
 
 .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 table { width: 100%; border-collapse: collapse; }

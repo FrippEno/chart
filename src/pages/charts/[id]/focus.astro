@@ -33,8 +33,11 @@ const goalDiff = chart.goal_score !== null && latest ? Math.abs(latest.score - c
 
     <div class="card focus-card">
         <div class="chart-wrap focus-chart-wrap">
-            <canvas id="chart-canvas"></canvas>
+            <div class="chart-sizer">
+                <canvas id="chart-canvas"></canvas>
+            </div>
         </div>
+        <p class="scroll-hint" id="chart-scroll-hint">Scroll to see more &rarr;</p>
     </div>
 </Layout>
 
@@ -78,7 +81,9 @@ h1 { margin: 0; }
 }
 .close-btn:hover { color: var(--text); background: #eee; }
 .focus-card { padding: 1.5rem; }
-.focus-chart-wrap { height: calc(100vh - 220px); min-height: 320px; }
+.focus-chart-wrap { height: calc(100vh - 220px); min-height: 320px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.chart-sizer { position: relative; height: 100%; min-width: 100%; }
+.scroll-hint { display: none; margin: 0.5rem 0 0; font-size: 0.78rem; color: var(--text-light); text-align: right; }
 @media (max-width: 640px) {
     .focus-chart-wrap { height: calc(100vh - 260px); }
     .focus-card { padding: 1rem; }

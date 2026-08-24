@@ -11,9 +11,33 @@ function chartFontSize(): number {
     return window.innerWidth < 480 ? 10 : 12;
 }
 
+// Give every point a minimum amount of horizontal room. When a chart has more
+// points than fit in that space, the sizer div grows wider than its scroll
+// box instead of squeezing points together, and the box scrolls horizontally.
+function layoutChartWidth(canvas: HTMLCanvasElement, pointCount: number): void {
+    const sizer = canvas.parentElement as HTMLElement | null;
+    const scrollBox = sizer?.parentElement as HTMLElement | null;
+    if (!sizer || !scrollBox) return;
+
+    const minPxPerPoint = window.innerWidth < 640 ? 34 : 22;
+    const neededWidth = pointCount * minPxPerPoint;
+    const scrollable = neededWidth > scrollBox.clientWidth;
+    sizer.style.width = scrollable ? `${neededWidth}px` : '100%';
+
+    const hint = document.getElementById('chart-scroll-hint');
+    if (hint) hint.style.display = scrollable ? 'block' : 'none';
+}
+
 export function renderChart(canvas: HTMLCanvasElement, chartData: any, entries: any[]): Chart {
     const CHART_MAIN = chartData.color || '#1f7a3d';
     const labels = entries.map((e: any) => e.entry_date);
+    layoutChartWidth(canvas, entries.length);
+
+    // Shrink markers once points are packed tightly, so dense charts don't
+    // turn into a solid smear of overlapping dots.
+    const dense = entries.length > 60;
+    const basePointRadius = dense ? 3 : 4;
+    const annotationPointRadius = dense ? 6 : 7;
 
     // Auto-expand each axis to fit the actual data if it falls outside the
     // chart's configured range, instead of silently clipping points at the edge.
@@ -33,8 +57,8 @@ export function renderChart(canvas: HTMLCanvasElement, chartData: any, entries: 
         pointBackgroundColor: entries.map((e: any) => e.annotation ? CHART_GOLD : CHART_MAIN),
         pointBorderColor: '#fff',
         pointBorderWidth: 2,
-        pointRadius: entries.map((e: any) => e.annotation ? 7 : 4),
-        pointHoverRadius: entries.map((e: any) => e.annotation ? 9 : 6),
+        pointRadius: entries.map((e: any) => e.annotation ? annotationPointRadius : basePointRadius),
+        pointHoverRadius: entries.map((e: any) => e.annotation ? annotationPointRadius + 2 : basePointRadius + 2),
         tension: 0.15,
         fill: true,
     }];
@@ -107,6 +131,8 @@ export function renderChart(canvas: HTMLCanvasElement, chartData: any, entries: 
         const size = chartFontSize();
         chartInstance.options.scales!.x!.ticks!.font = { size };
         chartInstance.options.scales!.y!.ticks!.font = { size };
+        layoutChartWidth(canvas, entries.length);
+        chartInstance.resize();
         chartInstance.update('none');
     });
 
