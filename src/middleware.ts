@@ -26,8 +26,23 @@ const SIGN_IN_PAGE = `<!DOCTYPE html>
 </body>
 </html>`;
 
+// A chart's own view/focus page is reachable without logging in — that's
+// the only way a shared link can work for someone who isn't you. Nothing
+// else (the chart list, creating, editing, all write APIs) is exempted, so
+// an anonymous visitor only ever sees the one chart they have a link to.
+const PUBLIC_CHART_ROUTES = [/^\/charts\/\d+\/?$/, /^\/charts\/\d+\/focus\/?$/];
+
+function isPublicChartRoute(pathname: string): boolean {
+  return PUBLIC_CHART_ROUTES.some((re) => re.test(pathname));
+}
+
 export const onRequest = defineMiddleware(async (context, next) => {
   const { request, locals, url } = context;
+
+  if (isPublicChartRoute(url.pathname)) {
+    return next();
+  }
+
   const env = locals.runtime?.env;
   const user = await getAuthenticatedUser(request, env);
 

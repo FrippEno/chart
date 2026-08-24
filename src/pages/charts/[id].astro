@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import { getDB } from '../../lib/db/client';
 import { getChartById, getEntriesForChart } from '../../lib/db/chart-queries';
 import { formatMetric } from '../../lib/format';
+import { getAuthenticatedUser } from '../../lib/auth';
 
 const { id } = Astro.params;
 const chartId = Number(id);
@@ -12,6 +13,13 @@ const chart = await getChartById(db, chartId);
 if (!chart) {
     return Astro.redirect('/');
 }
+
+// This page is reachable without logging in (see middleware.ts) so shared
+// links work for anyone. Editing controls only render for the signed-in
+// admin — the write APIs stay auth-gated either way, but showing buttons
+// that would just 401 for an anonymous visitor is confusing.
+const user = await getAuthenticatedUser(Astro.request, Astro.locals.runtime?.env);
+const isAuthed = !!user && user.is_admin === 1;
 
 const entries = await getEntriesForChart(db, chartId);
 const latest = entries.length > 0 ? entries[entries.length - 1] : null;
@@ -39,9 +47,9 @@ const description = chart.goal_score !== null && latest
             )}
         </div>
         <div class="top-actions">
-            <a href="/" class="btn btn-secondary">All Charts</a>
+            {isAuthed && <a href="/" class="btn btn-secondary">All Charts</a>}
             <a href={`/charts/${chart.id}/focus`} class="btn btn-secondary" target="_blank" rel="noopener">Focus View</a>
-            <a href={`/charts/edit/${chart.id}`} class="btn btn-secondary">Edit</a>
+            {isAuthed && <a href={`/charts/edit/${chart.id}`} class="btn btn-secondary">Edit</a>}
         </div>
     </div>
 
@@ -57,43 +65,45 @@ const description = chart.goal_score !== null && latest
         </div>
     </div>
 
-    <div class="card" style="margin-top: 1.5rem;">
-        <h2 class="section-h">Add Data Point</h2>
-        <form id="entry-form">
-            <input type="hidden" name="chart_id" value={chart.id} />
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="entry_date">{chart.x_axis_label}</label>
-                    <input type="date" id="entry_date" name="entry_date" required min={chart.date_start} max={chart.date_end} />
+    {isAuthed && (
+        <div class="card" style="margin-top: 1.5rem;">
+            <h2 class="section-h">Add Data Point</h2>
+            <form id="entry-form">
+                <input type="hidden" name="chart_id" value={chart.id} />
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="entry_date">{chart.x_axis_label}</label>
+                        <input type="date" id="entry_date" name="entry_date" required min={chart.date_start} max={chart.date_end} />
+                    </div>
+                    <div class="form-group">
+                        <label for="score">{chart.y_axis_label}</label>
+                        <input type="number" id="score" name="score" required min={chart.y_min} max={chart.y_max} step="any" />
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label for="score">{chart.y_axis_label}</label>
-                    <input type="number" id="score" name="score" required min={chart.y_min} max={chart.y_max} step="any" />
+                    <label for="annotation">Annotation (optional)</label>
+                    <textarea id="annotation" name="annotation" rows="2" placeholder="Note about this data point..."></textarea>
                 </div>
+                <button type="submit" class="btn">Add Point</button>
+                <div id="add-status" class="status-message"></div>
+            </form>
+        </div>
+
+        <div class="card" style="margin-top: 1.5rem;">
+            <h2 class="section-h">Bulk Import</h2>
+            <p class="hint">CSV with a header row: <code>date,score,annotation</code> (annotation column is optional). Paste it below or choose a file &mdash; either works.</p>
+            <div class="form-group">
+                <input type="file" id="csv-file" accept=".csv,text/csv" />
             </div>
             <div class="form-group">
-                <label for="annotation">Annotation (optional)</label>
-                <textarea id="annotation" name="annotation" rows="2" placeholder="Note about this data point..."></textarea>
+                <textarea id="csv-text" rows="5" placeholder={`date,score,annotation\n${chart.date_start},50,\n${chart.date_end},72,Felt great today`}></textarea>
             </div>
-            <button type="submit" class="btn">Add Point</button>
-            <div id="add-status" class="status-message"></div>
-        </form>
-    </div>
-
-    <div class="card" style="margin-top: 1.5rem;">
-        <h2 class="section-h">Bulk Import</h2>
-        <p class="hint">CSV with a header row: <code>date,score,annotation</code> (annotation column is optional). Paste it below or choose a file &mdash; either works.</p>
-        <div class="form-group">
-            <input type="file" id="csv-file" accept=".csv,text/csv" />
+            <button type="button" id="preview-btn" class="btn btn-secondary">Preview</button>
+            <button type="button" id="import-btn" class="btn" style="display: none; margin-left: 0.75rem;">Import Points</button>
+            <div id="import-status" class="status-message"></div>
+            <div id="csv-preview"></div>
         </div>
-        <div class="form-group">
-            <textarea id="csv-text" rows="5" placeholder={`date,score,annotation\n${chart.date_start},50,\n${chart.date_end},72,Felt great today`}></textarea>
-        </div>
-        <button type="button" id="preview-btn" class="btn btn-secondary">Preview</button>
-        <button type="button" id="import-btn" class="btn" style="display: none; margin-left: 0.75rem;">Import Points</button>
-        <div id="import-status" class="status-message"></div>
-        <div id="csv-preview"></div>
-    </div>
+    )}
 
     <div class="card" style="margin-top: 1.5rem;">
         <h2 class="section-h">Data Points</h2>
@@ -107,7 +117,7 @@ const description = chart.goal_score !== null && latest
                             <th>{chart.x_axis_label}</th>
                             <th>{chart.y_axis_label}</th>
                             <th>Annotation</th>
-                            <th></th>
+                            {isAuthed && <th></th>}
                         </tr>
                     </thead>
                     <tbody>
@@ -116,10 +126,12 @@ const description = chart.goal_score !== null && latest
                                 <td class="cell-date">{e.entry_date}</td>
                                 <td class="cell-score" data-score={e.score}>{fmt(e.score)}</td>
                                 <td class="cell-annotation">{e.annotation || ''}</td>
-                                <td class="cell-actions">
-                                    <button type="button" class="link-btn edit-entry">Edit</button>
-                                    <button type="button" class="link-btn delete-entry">Delete</button>
-                                </td>
+                                {isAuthed && (
+                                    <td class="cell-actions">
+                                        <button type="button" class="link-btn edit-entry">Edit</button>
+                                        <button type="button" class="link-btn delete-entry">Delete</button>
+                                    </td>
+                                )}
                             </tr>
                         ))}
                     </tbody>
@@ -145,10 +157,12 @@ const canvas = document.getElementById('chart-canvas') as HTMLCanvasElement;
 renderChart(canvas, chartData, entries);
 
 // ── Add entry ─────────────────────────────────────────────────────────
-const entryForm = document.getElementById('entry-form') as HTMLFormElement;
-const addStatus = document.getElementById('add-status')!;
+// These elements only exist in the markup for the signed-in admin — an
+// anonymous viewer on a shared link doesn't get them at all.
+const entryForm = document.getElementById('entry-form') as HTMLFormElement | null;
+const addStatus = document.getElementById('add-status');
 
-entryForm.addEventListener('submit', async (e) => {
+entryForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const formData = new FormData(entryForm);
     const data = Object.fromEntries(formData.entries());
@@ -164,29 +178,29 @@ entryForm.addEventListener('submit', async (e) => {
             window.location.reload();
         } else {
             const error = await response.json();
-            addStatus.textContent = `Error: ${error.error || 'Failed to add point'}`;
-            addStatus.className = 'status-message error';
+            addStatus!.textContent = `Error: ${error.error || 'Failed to add point'}`;
+            addStatus!.className = 'status-message error';
         }
     } catch {
-        addStatus.textContent = 'Network error. Please try again.';
-        addStatus.className = 'status-message error';
+        addStatus!.textContent = 'Network error. Please try again.';
+        addStatus!.className = 'status-message error';
     }
 });
 
 // ── Bulk import ───────────────────────────────────────────────────────
-const csvFileInput = document.getElementById('csv-file') as HTMLInputElement;
-const csvTextArea = document.getElementById('csv-text') as HTMLTextAreaElement;
-const previewBtn = document.getElementById('preview-btn') as HTMLButtonElement;
-const importBtn = document.getElementById('import-btn') as HTMLButtonElement;
-const importStatus = document.getElementById('import-status')!;
-const csvPreview = document.getElementById('csv-preview')!;
+const csvFileInput = document.getElementById('csv-file') as HTMLInputElement | null;
+const csvTextArea = document.getElementById('csv-text') as HTMLTextAreaElement | null;
+const previewBtn = document.getElementById('preview-btn') as HTMLButtonElement | null;
+const importBtn = document.getElementById('import-btn') as HTMLButtonElement | null;
+const importStatus = document.getElementById('import-status');
+const csvPreview = document.getElementById('csv-preview');
 
 let pendingImport: { entry_date: string; score: number; annotation: string | null }[] = [];
 
-csvFileInput.addEventListener('change', async () => {
+csvFileInput?.addEventListener('change', async () => {
     const file = csvFileInput.files?.[0];
     if (!file) return;
-    csvTextArea.value = await file.text();
+    csvTextArea!.value = await file.text();
 });
 
 const DATE_ALIASES = ['date', 'x', chartData.x_axis_label.toLowerCase()];
@@ -201,15 +215,15 @@ function normalizeDate(raw: string): string | null {
     return parsed.toISOString().slice(0, 10);
 }
 
-previewBtn.addEventListener('click', () => {
-    importStatus.className = 'status-message';
-    importStatus.textContent = '';
-    importBtn.style.display = 'none';
+previewBtn?.addEventListener('click', () => {
+    importStatus!.className = 'status-message';
+    importStatus!.textContent = '';
+    importBtn!.style.display = 'none';
     pendingImport = [];
 
-    const csvText = csvTextArea.value.trim();
+    const csvText = csvTextArea!.value.trim();
     if (!csvText) {
-        csvPreview.innerHTML = '<p class="hint">Nothing to preview yet.</p>';
+        csvPreview!.innerHTML = '<p class="hint">Nothing to preview yet.</p>';
         return;
     }
 
@@ -248,7 +262,7 @@ previewBtn.addEventListener('click', () => {
     }
 
     if (rows.length === 0) {
-        csvPreview.innerHTML = '<p class="hint">No rows found. Make sure the first row is a header: date,score,annotation</p>';
+        csvPreview!.innerHTML = '<p class="hint">No rows found. Make sure the first row is a header: date,score,annotation</p>';
         return;
     }
 
@@ -261,7 +275,7 @@ previewBtn.addEventListener('click', () => {
         </tr>
     `).join('');
 
-    csvPreview.innerHTML = `
+    csvPreview!.innerHTML = `
         <table class="preview-table">
             <thead><tr><th>Date</th><th>Score</th><th>Annotation</th><th>Status</th></tr></thead>
             <tbody>${rowsHtml}</tbody>
@@ -271,12 +285,12 @@ previewBtn.addEventListener('click', () => {
 
     pendingImport = valid;
     if (valid.length > 0) {
-        importBtn.style.display = 'inline-block';
-        importBtn.textContent = `Import ${valid.length} Point${valid.length === 1 ? '' : 's'}`;
+        importBtn!.style.display = 'inline-block';
+        importBtn!.textContent = `Import ${valid.length} Point${valid.length === 1 ? '' : 's'}`;
     }
 });
 
-importBtn.addEventListener('click', async () => {
+importBtn?.addEventListener('click', async () => {
     if (pendingImport.length === 0) return;
 
     try {
@@ -290,12 +304,12 @@ importBtn.addEventListener('click', async () => {
             window.location.reload();
         } else {
             const error = await response.json();
-            importStatus.textContent = `Error: ${error.error || 'Failed to import'}`;
-            importStatus.className = 'status-message error';
+            importStatus!.textContent = `Error: ${error.error || 'Failed to import'}`;
+            importStatus!.className = 'status-message error';
         }
     } catch {
-        importStatus.textContent = 'Network error. Please try again.';
-        importStatus.className = 'status-message error';
+        importStatus!.textContent = 'Network error. Please try again.';
+        importStatus!.className = 'status-message error';
     }
 });
 
