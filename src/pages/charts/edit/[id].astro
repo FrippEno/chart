@@ -87,6 +87,7 @@ const currentColor = chart.color || DEFAULT_CHART_COLOR;
             </div>
 
             <button type="submit" class="btn">Save Changes</button>
+            <button type="button" id="reset-data-btn" class="btn btn-danger" style="margin-left: 0.75rem;">Reset All Data</button>
             <button type="button" id="delete-btn" class="btn btn-danger" style="margin-left: 0.75rem;">Delete Chart</button>
             <div id="status-message" class="status-message"></div>
         </form>
@@ -97,6 +98,7 @@ const currentColor = chart.color || DEFAULT_CHART_COLOR;
     const form = document.getElementById('chart-form') as HTMLFormElement;
     const statusMessage = document.getElementById('status-message')!;
     const deleteBtn = document.getElementById('delete-btn') as HTMLButtonElement;
+    const resetDataBtn = document.getElementById('reset-data-btn') as HTMLButtonElement;
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -115,6 +117,31 @@ const currentColor = chart.color || DEFAULT_CHART_COLOR;
             } else {
                 const error = await response.json();
                 statusMessage.textContent = `Error: ${error.error || 'Failed to update chart'}`;
+                statusMessage.className = 'status-message error';
+            }
+        } catch {
+            statusMessage.textContent = 'Network error. Please try again.';
+            statusMessage.className = 'status-message error';
+        }
+    });
+
+    resetDataBtn.addEventListener('click', async () => {
+        if (!confirm('Delete all data points on this chart? The chart itself will stay, but this cannot be undone.')) return;
+        const chart_id = Number(new FormData(form).get('id'));
+
+        try {
+            const response = await fetch('/api/charts/entries/clear', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chart_id }),
+            });
+
+            if (response.ok) {
+                statusMessage.textContent = 'All data points have been removed.';
+                statusMessage.className = 'status-message success';
+            } else {
+                const error = await response.json();
+                statusMessage.textContent = `Error: ${error.error || 'Failed to reset chart data'}`;
                 statusMessage.className = 'status-message error';
             }
         } catch {

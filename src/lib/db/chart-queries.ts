@@ -176,3 +176,9 @@ export async function deleteEntry(db: D1Database, id: number): Promise<void> {
     await db.prepare('DELETE FROM chart_entries WHERE id = ?').bind(id).run();
   }, `Failed to delete entry: ${id}`);
 }
+
+export async function deleteAllEntriesForChart(db: D1Database, chartId: number): Promise<void> {
+  return safeQuery(async () => {
+    await db.prepare('DELETE FROM chart_entries WHERE chart_id = ?').bind(chartId).run();
+  }, `Failed to reset entries for chart: ${chartId}`);
+}
