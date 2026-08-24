@@ -21,11 +21,103 @@ function layoutChartWidth(canvas: HTMLCanvasElement, pointCount: number): void {
 
     const minPxPerPoint = window.innerWidth < 640 ? 34 : 22;
     const neededWidth = pointCount * minPxPerPoint;
-    const scrollable = neededWidth > scrollBox.clientWidth;
-    sizer.style.width = scrollable ? `${neededWidth}px` : '100%';
+    sizer.style.width = neededWidth > scrollBox.clientWidth ? `${neededWidth}px` : '100%';
 
-    const hint = document.getElementById('chart-scroll-hint');
-    if (hint) hint.style.display = scrollable ? 'block' : 'none';
+    setupChartNav(scrollBox);
+    updateNavButtons(scrollBox);
+}
+
+function updateNavButtons(scrollBox: HTMLElement): void {
+    const leftBtn = document.getElementById('chart-nav-left');
+    const rightBtn = document.getElementById('chart-nav-right');
+    if (!leftBtn || !rightBtn) return;
+
+    const scrollable = scrollBox.scrollWidth > scrollBox.clientWidth + 1;
+    leftBtn.classList.toggle('visible', scrollable && scrollBox.scrollLeft > 4);
+    rightBtn.classList.toggle('visible', scrollable && scrollBox.scrollLeft < scrollBox.scrollWidth - scrollBox.clientWidth - 4);
+}
+
+// Left/right arrow buttons page the scroll box by ~80% of its width so users
+// can step through a wide chart without having to drag-scroll it by hand.
+function setupChartNav(scrollBox: HTMLElement): void {
+    const leftBtn = document.getElementById('chart-nav-left');
+    const rightBtn = document.getElementById('chart-nav-right');
+    if (!leftBtn || !rightBtn || scrollBox.dataset.navBound) return;
+    scrollBox.dataset.navBound = 'true';
+
+    const page = () => Math.max(scrollBox.clientWidth * 0.8, 120);
+    leftBtn.addEventListener('click', () => scrollBox.scrollBy({ left: -page(), behavior: 'smooth' }));
+    rightBtn.addEventListener('click', () => scrollBox.scrollBy({ left: page(), behavior: 'smooth' }));
+    scrollBox.addEventListener('scroll', () => updateNavButtons(scrollBox));
+}
+
+function escapeHtml(str: string): string {
+    const map: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+    return str.replace(/[&<>"']/g, (c) => map[c]);
+}
+
+function getOrCreateTooltipEl(): HTMLDivElement {
+    let el = document.getElementById('chart-tooltip-el') as HTMLDivElement | null;
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'chart-tooltip-el';
+        el.className = 'chart-tooltip-el';
+        document.body.appendChild(el);
+    }
+    return el;
+}
+
+// Renders the tooltip as a real HTML element (instead of Chart.js's default
+// canvas-drawn tooltip) so it can be measured and clamped to the actual
+// browser viewport — it can no longer render off the edge of the page, even
+// when the chart itself is wider than the screen and horizontally scrolled.
+function externalTooltipHandler(context: any): void {
+    const { chart, tooltip } = context;
+    const el = getOrCreateTooltipEl();
+
+    if (tooltip.opacity === 0) {
+        el.style.opacity = '0';
+        return;
+    }
+
+    let html = '';
+    (tooltip.title || []).forEach((title: string) => {
+        html += `<div class="ct-title">${escapeHtml(title)}</div>`;
+    });
+    (tooltip.body || []).forEach((b: any, i: number) => {
+        const dp = tooltip.dataPoints[i];
+        const color = dp.dataset.borderColor as string;
+        const lines = [...(b.before || []), ...(b.lines || [])];
+        if (lines.length) {
+            html += `<div class="ct-row"><span class="ct-dot" style="background:${color}"></span>${escapeHtml(lines.join(' '))}</div>`;
+        }
+        (b.after || []).forEach((line: string) => {
+            html += `<div class="ct-note">${escapeHtml(line)}</div>`;
+        });
+    });
+    el.innerHTML = html;
+    el.style.opacity = '1';
+
+    const canvasRect = chart.canvas.getBoundingClientRect();
+    const rect = el.getBoundingClientRect();
+    const margin = 10;
+
+    let left = canvasRect.left + window.scrollX + tooltip.caretX - rect.width / 2;
+    const minLeft = window.scrollX + margin;
+    const maxLeft = window.scrollX + window.innerWidth - rect.width - margin;
+    left = Math.min(Math.max(left, minLeft), maxLeft);
+
+    let top = canvasRect.top + window.scrollY + tooltip.caretY - rect.height - 14;
+    const minTop = window.scrollY + margin;
+    if (top < minTop) {
+        // Not enough room above the point — show the tooltip below it instead.
+        top = canvasRect.top + window.scrollY + tooltip.caretY + 14;
+    }
+    const maxTop = window.scrollY + window.innerHeight - rect.height - margin;
+    top = Math.min(Math.max(top, minTop), maxTop);
+
+    el.style.left = `${left}px`;
+    el.style.top = `${top}px`;
 }
 
 export function renderChart(canvas: HTMLCanvasElement, chartData: any, entries: any[]): Chart {
@@ -108,13 +200,8 @@ export function renderChart(canvas: HTMLCanvasElement, chartData: any, entries: 
                     labels: { boxWidth: 22, boxHeight: 2, color: '#444', font: { size: 12 }, usePointStyle: false },
                 },
                 tooltip: {
-                    backgroundColor: '#1e4620',
-                    titleColor: '#fff',
-                    bodyColor: '#fff',
-                    padding: 10,
-                    cornerRadius: 6,
-                    titleFont: { weight: '600' },
-                    bodyFont: { weight: '600' },
+                    enabled: false,
+                    external: externalTooltipHandler,
                     callbacks: {
                         afterLabel: (ctx: any) => {
                             if (ctx.dataset.label === 'Goal') return '';

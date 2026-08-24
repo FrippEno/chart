@@ -32,12 +32,15 @@ const goalDiff = chart.goal_score !== null && latest ? Math.abs(latest.score - c
     </div>
 
     <div class="card focus-card">
-        <div class="chart-wrap focus-chart-wrap">
-            <div class="chart-sizer">
-                <canvas id="chart-canvas"></canvas>
+        <div class="chart-shell">
+            <button type="button" class="chart-nav chart-nav-left" id="chart-nav-left" aria-label="Scroll chart left">&#8249;</button>
+            <div class="chart-wrap focus-chart-wrap">
+                <div class="chart-sizer">
+                    <canvas id="chart-canvas"></canvas>
+                </div>
             </div>
+            <button type="button" class="chart-nav chart-nav-right" id="chart-nav-right" aria-label="Scroll chart right">&#8250;</button>
         </div>
-        <p class="scroll-hint" id="chart-scroll-hint">Scroll to see more &rarr;</p>
     </div>
 </Layout>
 
@@ -81,9 +84,32 @@ h1 { margin: 0; }
 }
 .close-btn:hover { color: var(--text); background: #eee; }
 .focus-card { padding: 1.5rem; }
+.chart-shell { position: relative; }
 .focus-chart-wrap { height: calc(100vh - 220px); min-height: 320px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .chart-sizer { position: relative; height: 100%; min-width: 100%; }
-.scroll-hint { display: none; margin: 0.5rem 0 0; font-size: 0.78rem; color: var(--text-light); text-align: right; }
+.chart-nav {
+    display: none;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 5;
+    width: 34px;
+    height: 34px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background: #fff;
+    color: var(--primary);
+    font-size: 1.3rem;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
+.chart-nav:hover { background: #f5f8f5; }
+.chart-nav.visible { display: flex; }
+.chart-nav-left { left: 4px; }
+.chart-nav-right { right: 4px; }
 @media (max-width: 640px) {
     .focus-chart-wrap { height: calc(100vh - 260px); }
     .focus-card { padding: 1rem; }
